@@ -1,0 +1,105 @@
+shutter
+evince
+eog
+baobab
+tmux
+citrix
+http://man.linuxde.net/
+https://explainshell.com
+
+
+
+
+
+
+
+nohup command > nohup.log 2>&1 &
+
+
+sudo apt-get install openssh-server
+sudo apt-get install vsftpd
+
+
+
+lsof -i:[port]
+netstat -tunlp|grep [port]
+
+
+wget -qO- https://get.docker.com/ | sh
+
+sudo usermod -aG docker [username]
+
+
+curl -fLo 
+
+
+sudo service docker start
+docker run hello-world
+
+
+set -e
+错误退出
+-u
+当执行时使用到未定义过的变量，则显示错误信息
+set -o pipefail
+设置了这个选项以后，包含管道命令的语句的返回值，会变成最后一个返回非零的管道命令的返回值。
+
+
+
+
+cd /usr/local/ # or wherever you install apps
+git clone https://github.com/facebook/PathPicker.git
+cd PathPicker/
+ln -s "$(pwd)/fpp" /usr/local/bin/fpp
+fpp --help # should work!
+
+git status | fpp
+ls | fpp
+选择输出的文件使用$EDITOR打开
+
+
+git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+~/.fzf/install
+
+cd $(ls | fzf)
+cd 冲ls的输出中选择
+
+
+
+
+888734770214
+
+db2nosql -help
+postgresql nosql
+db2 enterprise server edition 10.5
+
+
+
+samba
+cron
+SonarQube
+
+
+
+
+db2inste
+db2c_db2inste/50002
+db2fence
+
+
+
+
+
+describe data partitions FOR TABLE TEST.PART_TABE show detail
+
+
+
+
+
+
+
+
+
+
+
+
