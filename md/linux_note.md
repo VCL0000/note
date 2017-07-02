@@ -165,6 +165,7 @@ uniq 命令的输入必须先排好序,因此通常把它放在 sort 命令之�
 
 ### 碎碎念
 - `time commond` 命令运行的时间
+- `watch uptime` 以周期性的方式执行给定的指令
 - `time cat` 秒表一样
 - `cal -3`显示最近三个月日历
 - `cal xx xxxx`显示xxxx年xx月的日历
@@ -450,7 +451,7 @@ statm|内存使用情况的信息
 AIX:truss
 `sudo strace -p PID`
 
-## 文件系统
+## 文件权限控制
 ### 挂载/卸载文件系统
 - `mount [directory | device ]`
 挂载在某个特定系统上的文件系统清单保存在/etc/fstab文件中，当系统引导时，这个文件中的信息先被fsck再被自动mount
@@ -516,6 +517,120 @@ umask默认值是022,因此默认创建文件的默认权限是777-022=755
 可在/etc/profile $HOME/.profile 修改默认umask值
 
 ## 存储
+- `suod fdisk -l`列出系统中的硬盘
+- 2TB一下的硬盘可以使用windows MBR分区表，可以使用`fdisk`，`sfdisk`，`parted`。再大的硬盘就要用GPT分区表，必须使用`parted`分区。
+- 使用LVM处理分区,假设新分区的设备名为`/dev/sdc1`
+ - `sudo pvcreate /dev/sdc1`准备提供LVM使用
+ - `sudo vgcreate [vgname] /dev/sdc1`创建卷组
+ - `sudo lvcreate -l 100%FREE -n volnamevgname`创建逻辑卷
+ - `sudo mkfs -t ext4 /dev/vgname/volname`创建文件系统
+ - `sudo mkdir mountPoint`创建挂载点
+ - `sudo vi /etc/fstab`设置挂在的选项和挂载点
+ 硬盘挂载在`/dev/vgname/volname`，可以使用UUID=xxx代替设备文件。查看设备UUID`blkid`/`ls -l /dev/disk/by-uid`
+ - `sudo mount mountPoint` 挂载这个文件系统
+
+- 磁盘设备文件
+linux 磁盘块设备文件名 /dev/sda
+`parted -l` 可以列出系统上每个磁盘的大小，分区表，型号等信息
+
+- `mkfs`  `mkfs -t ext4 -c /dev/sdax`在/dev/sdax上创建一个ext4文件系统，同时检查是否有坏轨存在。-c检查坏轨
+
+- SATA 完全擦除，防止文件恢复，可以使用`hdparm`命令。
+
+- hdparm [opentios] device
+
+参数|作用
+-|-
+-I|转储许多标识和状态信息
+-M value|设置噪声管理参数
+-S value|设置自动待机（停转）模式的延迟时间
+-y|让磁盘立即进入待机模式
+-C|查询硬盘当前电源管理的状态
+-T|快速检测接口贷款（不实际执行读硬盘的操作）
+-t|快速整个盘片到主机的顺序操作
+### 分区
+- 分区和逻辑卷管理是把一个硬盘（在LVM下，一个硬盘池）划分成已大小独立的块，可以把单个分区置于逻辑卷管理程序的控制之前，但不能对一个逻辑卷分区。
+- 时把交换分区，繁忙的文件系统放到多个不同的硬盘，可以提高性能。
+- 在硬盘的起始位置写一个“标签”固定这个分区的数据范围，这个标签经常会和其他启动信息共存。Windows这个标签叫MBR主引导记录(master boot record)
+ - MBR可以定义四个分区，因为是直接定义在MBR里的因此被成为主分区。也可以把主分区定义为一个扩展分区，它包含自己的次级分区表。次级分区表保存在分区数据的开头
+  - windwos分区硬盘的一些规则
+   - 一个硬盘上只有一个扩展分区
+   - 扩展分区应该是MBR里定义的最后一个分区；它后面没有主分区。
+   - 有些比较老的系统被装到次级分区会有麻烦。
+   - windows的分区系统可以把一个分区标为活动分区，引导加载程序要找到这个活动分区，尝试从这个分区里加载操作系统
+- GPT
+ - EFI旨在取代BIOS的不稳固规范，EFI的分区分区方案得到了各个操作系统的广泛支持。
+ - EFI分区使用一种GUID分区表，GPT只定义了一种类型的分区，可以任意创建多这个这样的分区。GPT通过带一个MBR作为分区表的第一块保持了和基于MBR系统的原始兼容性，这个“假”MBR让硬盘看上去被一个大MBR分区占据。各种磁盘管理工具对GPT的支持参差不齐，因此在非2TB以上的硬盘没有什么非用不可的理由。
+- 分区工具`fdisk`,`parted`,GUI的`gparted`,`cfdisk`
+- ZFS 自动给硬盘做标签并应用GPT分区表，but还可以使用format手工分区。
+
+### RAID 廉价磁盘冗余阵列
+- RAID有软硬两种实现，有比没有好软的也是RAID
+- RAID把数据“条带式”地分散到多个硬盘上，因为能让多个磁盘读操作一条数据流，所以提高性能；RAID在多个硬盘上“复制”数据，降低磁盘故障带来的风险。
+ - 复制的两中方式。镜像数据块在硬盘上逐位复制，快消耗磁盘多；奇偶校验，慢消耗磁盘少。
+
+- RAID级别，配置的不同方式。JBOD线性(只是一堆硬盘)，RAID 0 （数据分散到多个磁盘，提高效率），RAID 1（在多个硬盘上复制），RAID 0+1/RAID 1+0（01一起使用，同时活动性能和冗余性），RAID 5（数据和校验信息都分散到不同的硬盘，空间效率比镜像好），RAID 6（两个磁盘多校验能承受两块硬盘完全损坏不丢失数据）。逻辑卷管理器通常包含RAID 0 和RAID 1。
+ - linux 可以使用专门 RAID（md），或者逻辑卷管理器。使用md任然可以使用LVM管理RAID卷上的空间。RAID 5，RAID 6 必须用md软RAID。
+ - 故障恢复除了JBOD和RAID 0引发问题的设备被标记为有故障，除了性能下降，阵列任可以继续使用。RAID 5 和双硬盘的RAID 1只能容忍一块硬盘故障。更换过程只是替换硬盘就可以了，经过较长的一段时间会向空白硬盘重新写入校验或镜像信息。或者指定硬盘多热备份，发生故障时，故障硬盘自动与一块备份盘交换后立即开始重新同步。RAID 5 的若干问题被称作RAID 5 “写漏洞”。
+
+- **mdadm**linux标准的软RAID实现叫做mdadm。md可以使用原始硬盘作为部件，但出于保持一致性的考虑给硬盘建分区表还是不错的。
+ - 配置一个RAID 5 ，用三块500GB硬盘组成，使用gparted在每个硬盘上创建MBR表（msdos型分区表），所有硬盘空间分给‘unformatted’（未格式化）类型的分区。
+ - `sudo mdadm --create /dev/md0 --level=5 --raid-devices=3 /dev/sdb1 /dev/sdc1 /dev/sdd1`
+ - 虚拟文件`/proc/mdstat`始终保存有md状态的汇总信息，以及所有磁盘的状态信息`watch cat /proc/mdstat`动态检测的惯用命令
+ - mdadm从技术上不要求有配置文件，但提供的话也可以使用配置文件（一般是/etc/mdadm.conf），方便查找信息。`mdadm --detail --scan`可以到处配置，but不完整。`sudo sh -c 'echo DEVICE /dev/sdb1 /dev/sdc1 /dev/sdd1 > /etc/mdadm.conf'`,`sudo sh -c 'mdadm --detail --scan >> /etc/mdadm.conf'`。可以生成一个完整的例子。可以在启动或关闭的时候读取这个配置文件。在系统启动的同时也用新创建的配置文件启动阵列`sudo mdadm -As /dev/md0`。手工停止阵列`sudo mdadm -S /dev/md0`。mdadm 有一个 --monitor模式会启动一个守护进程持续运行，检测到有问题的时候可以通知用户。配置文件的MAILADDR行指定报警信息发给哪个接受者。
+ - ubuntu会默认启动磁盘阵列，RedHat SUSE带有RAID的启动脚本样例。
+  - Ubuntu `sudo update-rc.d mdadm enable`
+  - SUSE `sudo chkconfig -s mdadmd on`
+  - redHat `sudo chkconfig mdmonitor on`
+
+### 逻辑卷管理
+逻辑卷管理实质上是增强和抽象版的磁盘分区。多个设备组成卷组(volume group)，一个卷组内的数据块分配给逻辑劵(logical volume),逻辑卷用设备块文件表示，其功能就像磁盘分区
+linux LVM2 相关命令
+
+对象|操作|含义
+-|-
+物理卷|pvcreate|创建
+|pvdisplay|查看
+|pvchange|修改
+|vgcreate|核对
+卷组|vgcreate|创建
+|vgchange|修改
+|vgxtend|扩展
+|vgdisplay|查看
+|vgck|核对
+|vcgscan|启动
+逻辑卷|lvcreate|创建
+|lvchange|修改
+|lvresize|改变大小
+|lvdisplay|查看
+物理劵可以是磁盘，磁盘分区，RAID阵列。
+其实这些命令都是`lvm`的链接
+LVM的命令以字母开头，字母表示命令在哪个抽象层面执行：pv操作物理劵，vg操作卷组，lv操作逻辑卷
+- 创建步骤
+ - 创建（定义）和初始化物理卷
+ - 把物理劵加到一个卷组内
+ - 在卷组上创建逻辑劵
+- 例子
+ - 使用之前的RAID阵列，条带和冗余性直接使用RAID的，虽然LVM2也有这些功能。
+ - `sudo pvcreate /dev/md0`创建卷组
+ - `sudo vgcreate [DEMO] /dev/md0`创建卷组
+ - `sudo vgdisplay DEMO` 查看
+ - `sudo lvcreate -L 100G -n [web1] DEMO`在DEMO卷组上创建web1逻辑劵,可以通过`/dev/DEMO/web1`访问逻辑劵。LVM2可以在卷组上建条带，镜像。
+ - `sudo mkfs /dev/DEMO/web1`,`sudo mkdir /mnt/web1`,`sudo mount /dev/DEMO/web1 /mnt/web1`格式化，挂载。
+- 逻辑卷快照 给`/dev/DEMO/web1`创建一个`/dev/DEMO/web1`
+ - `sudo lvcreate -L 100G -s -n web1-snap DEMO/web1`,快照的源逻辑卷必须按“卷组/劵”的方式指定，理论上应该是先卸载文件系统一致性，实际上可能会丢失最近的备份数据块但ext4能保护文件系统不会受损。`lvdisplay`可以查看快照的状态，如果输出某个快照没有在活动的状态，意味着它已经用完了空间，应该被删除。
+- 给逻辑卷扩容
+ - `sudo umount /mnt/web1`
+ - `sudo lvchange -an DEMO/web1`
+ - `sudo lvresize -L +10G DEMO/web1`
+ - `sudo lvchange -ay DEMO/web1`
+ - `sudo e2fsck -f /dev/DEMO/web1`,`resize2fs`需要在改变文件系统大小之前检查文件系统的一致性。
+ - `sudo resize2fs /dev/DEMO/web1`改变文件系统的大小,`resize2fs`支持ext类文件系统，能够判断文件系统在逻辑劵里的大小，因此不需要明确指定文件系统新的大小。只有在缩小的时候才需要指定。
+ - `sudo mount /dev/DEMO/web1 /mnt/web1`挂载。
+
+### 文件系统
+
+
 
 
 ## 用户
