@@ -1,6 +1,8 @@
 [TOC]
 
 # Linux Note
+*大部分内容只适用于Linux,UNIX在如配置文件的位置内容，命令的名称有些许差异*
+
 ## shell
 
 ### 默认的交互shell和默认的系统shell，是不一样的含义
@@ -489,7 +491,7 @@ rm -i删除前询问，rm -i xx* 删除复杂文件名文件的技巧
 - 第二列是权限，如果设置了setuid位属主的执行权限是s，设置了setgid位组执行权限的x也会被s替代，粘附位被打开的话其他人的执行位为t。如果设置了setuid，setuid，粘附位，但没有相应的执行权限那么这些位就显示为S或T。脚本的可执行需要读取和执行权限，让解释器读取该文件。二进制文件是由内核直接执行因此不需要读取权限。
 - 第三列表示该文件的链接数目(硬链接)，所有目录至少拥有两个硬链接：来自父目录的链接和来自目录内部`.`的链接。
 - 之后是文件的所有，文件系统保存的是uid，若用户从/etc/passwd中删除则显示uid
-- 文件大小，设备文件显示主设备号和次设备号 `ls -l /dev/tty0`  
+- 文件大小，设备文件显示主设备号和次设备号 `ls -l /dev/tty0`
 `crw--w---- 1 root tty 4, 0 6月  26 21:25 /dev/tty0`
 `/dev/tty0`第一个虚拟控制台，设备驱动程序是4（终端驱动程序）
 - 文件内容的修改时间和文件属性的修改时间是不一样的。
@@ -513,6 +515,9 @@ g=u|所有者的权限给属主
 umask默认值是022,因此默认创建文件的默认权限是777-022=755
 可在/etc/profile $HOME/.profile 修改默认umask值
 
+## 存储
+
+
 ## 用户
 ### `/etc/passwd`
 
@@ -522,7 +527,48 @@ umask默认值是022,因此默认创建文件的默认权限是777-022=755
 - 加密口令实际被保存在`/etc/shadow`。散列+salt加密。MD5的口令以$md5$开头，SHA256以$5$开头
 - 可以编辑该文件创建新账号(vipw),加密口令位不要为空否则不用口令就能访问这个账号
 - 加密口令的算法在`/etc/login.defs`中设置
+- 默认目录如果是网络文件系统，出现问题时会出现no home directory的提示，并打用户放到`/`下.`/etc/login.defs`中的DEFAULT_HOME设置为no会禁止没有主目录的用户登录
 
+### `/etc/shadow`
+- 同样一行一个用户，使用`:`分隔九个字段
+ - 登录名,加密后的口令,两次修改口令之间最少的天数,两次修改口令之间最做多,提前多少天警告用户口令即将过期,在口令过期之后多少天禁用账号,账号过期的日期,保留字段目前为空。
+- 指定的绝对日期是从1970年1月1之间的天数，可以通过以下命令计算```expr `date +%s` / 89400```
+- 可以使用`pwconv`工具让shadow文件的内容和passwd文件的内容保持一致，pwconv会用/etc/login.defs文件指定默认值填写打多少shadow参数。
+### `/etc/group`
+多个用户之间使用`,`分隔不可有空格
+
+### 添加用户
+- useradd `useradd`配置文件位置`/etc/login.defs`/etc/defult/useradd`。
+ - `sudo useradd -d /home/newUser -g newGroup -G otherGroup -m -s/bin/sh newUser`
+ -m参数指定主目录不存在创建，并复制启动文件
+ -g 用户的初始组
+ -G 还属于哪些组`,`分隔无空格
+ -U 创建一个和用户名一样的组并添加用户到组
+ `sudo useradd -d /home/username -U -m -s /bin/bash username` 没有制定的信息会根据配置文件的相关配置设置
+ - ubuntu 还提供了adduser命令，配置文件位置`/etc/adduserconf` 是更友好的perl版本，提供了建主目录，复制启动文件等。
+
+启动文件的样本一般都保存在`/etc/skel`下
+改变HOME 目录的所有权时应该 `sudo chown -R newUser:newGroup dir`，不能使用 ./* 这样会改变..的所有权。
+### 删除用户
+#### 完全删除用户
+- 从aliases文件中删除或者添加一个转发地址
+- 删除用户的crontab文件和所有挂起的at作业或打印作业
+- 种植所有仍在运行的用户进程
+- 将用户从passwd shadow group gshadow文件中删除
+- 删除用户的主目录
+- 删除用户的邮件存储文件
+- 清理共享的日历，空间预留系统等上面的数据项
+- 删除被删除用户运行的任何邮递列表，或者改变其所有权。
+- `sudo find fileSystem -xdev -nouser` 只在本地的文件系统查找 不属于本地用户的文件
+nouser 找出不属于本地主机用户识别码的文件或目录
+xdev 将范围局限在当前的文件系统中
+
+`uerdel`命令自动完删除一个用户的进程but可能不会完全删除
+同样ubuntu提供了`deluser`会撤销`adduser`做的所有事情
+
+
+
+#### 命令实例
 - **添加用户**
 `adduser username`
 `passwd username`
@@ -562,7 +608,7 @@ umask默认值是022,因此默认创建文件的默认权限是777-022=755
 删除为了满足依赖而安装的，但现在不再需要的软件包（包括已安装包），保留配置文件。
 - apt-get remove
 删除已安装的软件包（保留配置文件），不会删除依赖软件包，且保留配置文件。
-- apt-get autoclean 
+- apt-get autoclean
 APT的底层包是dpkg, 而dpkg 安装Package时, 会将 *.deb 放在 /var/cache/apt/archives/中，apt-get autoclean 只会删除 /var/cache/apt/archives/ 已经过期的deb。
 - apt-get clean
 使用 apt-get clean 会将 /var/cache/apt/archives/ 的 所有 deb 删掉，可以理解为 rm /var/cache/apt/archives/*.deb。
