@@ -451,14 +451,22 @@ statm|内存使用情况的信息
 AIX:truss
 `sudo strace -p PID`
 
+## 周期性进程
+### cron
+
+
+
+
+
 ## 文件权限控制
 ### 挂载/卸载文件系统
-- `mount [directory | device ]`
+- `mount [directory | device ]` mount不指定类型会自动选择类型
 挂载在某个特定系统上的文件系统清单保存在/etc/fstab文件中，当系统引导时，这个文件中的信息先被fsck再被自动mount
 - umount卸载文件系统，大多数文件系统上上不能卸载处于繁忙(busy)状态的文件系统，在该文件系统中不能又任何打开的文件，也不能又任何进程的当前目录，文件系统若包含可执行程序那这些程序也不能处于运行状态。
 - linux定义了一种lazy的卸载方式`umount -l`调用所有访问停止才能真正卸载，but不能保证当前访问都会自动关闭，其次半卸载会给使用文件系统的程序带来不一致（可以通过已有的文件句柄执行读写，却不能打开新的文件或者执行其他文件系统操作）
 - `umount -f` 强制卸载一个处于繁忙状态的文件系统
 - `fuser -c [mountpoint]` 查找该该挂载点文件系统上某文件或目录的每个进程的PID，再加一串字母显示反应状态, -v显示进程相关信息。`lsof`比fuse更先进更复杂
+- 挂载iso `sudo mount -t iso9660 -o loop ~/download/linuxmint-18.2-cinnamon-64bit.iso /media/Mint`
 **fuser反应码**
 代码|含义
 ---|---
@@ -629,8 +637,26 @@ LVM的命令以字母开头，字母表示命令在哪个抽象层面执行：pv
  - `sudo mount /dev/DEMO/web1 /mnt/web1`挂载。
 
 ### 文件系统
-
-
+- ext4
+ - `tune2fs -j /dev/xx`把ext2转换为ext4
+- `fsck` 文件系统一致性检查
+ - `sudo /sbin/tune2fs -c 50 /dev/xx`把执行文件系统检查的时间增加到50次挂载，默认是20次
+- dd 备份硬盘
+ - if输出文件
+ - of输出文件
+ - bs以字节为单位的块的大小
+ - count 被复制的块数
+ - `dd if=/dev/xx of=/dev/xxx`备份到磁盘
+ - `dd if=/dev/xx of /path/file`备份到文件
+ - `dd if=/path/file of=/dev/xx`从文件恢复
+ - `dd if=/dev/xx | gzip > /path/file.gz`压缩备份到文件
+ - `gzip -dc /path/file.gz | dd of=/dev/xx`从压缩文件恢复
+ - `dd if=/dev/xx of=/path/file count=1 bs=512`备份MBR表,MBR表在磁盘的第一块，恢复`dd if=/path/file of=/dev/xx`
+- 交换分区
+ - `mkswap [device]`初始化交换分区
+ - `swapon [device]`启用交换分区
+ - `swapon -s` 查看交换分区
+ - 交换分区也可以是一个文件
 
 
 ## 用户
@@ -728,13 +754,22 @@ APT的底层包是dpkg, 而dpkg 安装Package时, 会将 *.deb 放在 /var/cache
 - apt-get clean
 使用 apt-get clean 会将 /var/cache/apt/archives/ 的 所有 deb 删掉，可以理解为 rm /var/cache/apt/archives/*.deb。
 
-
 - 删除软件及其配置文件
 `apt-get --purge remove <package>`
 - 删除没用的依赖包
 `apt-get autoremove <package>`
 - 此时dpkg的列表中有“rc”状态的软件包，可以执行如下命令做最后清理：
 `dpkg -l |grep ^rc|awk '{print $2}' |sudo xargs dpkg -P`
+
+### 添加源
+ - 源设置 `/etc/apt/sources.list`文件,`/etc/apt/sources.list.d`目录
+ - `sudo apt-cdrom -m -d /media/Mint/ add` 添加镜像
+
+### 更新
+- `sudo apt-get update`
+- `sudo apt-get upgrade`
+- `sudo apt-get dist-upgrade`
+
 
 ### dpkg
 选项|含义
