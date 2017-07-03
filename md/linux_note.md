@@ -453,8 +453,32 @@ AIX:truss
 
 ## 周期性进程
 ### cron
+- cron读取一个或多个配置文件，这些配置文件中包含了commond及调用时间的清单。commond是由sh执行，也可以配置cron使用其他shell。
+- 每个用户的crontab都保存在 /var/spool/cron 目录下，每个用户最多有一个crontab文件，crontab文件是以它们的所属用户名来命名的。直接编辑crontab文件可能会导致cron没有注意到。
+- cron的默认日志文件一般为`/var/cron/log`或者`/var/adm/cron/log`
+### crontab文件格式
+minute hour day month weekday command
 
+字段|描述|范围
+-|-
+minute|小时中的分钟|0~59
+hour|天中的小时|0~23
+day|月中的天|1~31
+month|年中的月|1~12
+weekday|星期中的天|0~6(0=星期天)
+- *匹配所有字符，x-x指定范围，时间范围/步长值(1-10/2),同时指定day和weekday的话同时满足才会执行(都是天具有一些二义性)
+- command不需要加引号。也不是以登录shell执行的，不会读取~/.profile文件质之类的。可以把命令放到脚本中。使用%表示command的换行
 
+### crontab管理
+- `crontab file`把file安装为crontab文件，替代任何以前版本的crontab文件。
+- `crontab -e`检出crontab的一个副本调用编辑器（环境变量EDITOR所指定），然后将其重新提交给crontab目录
+- `crontab -l`将crontab中的内容输出
+- `crontab -r`将会删除，不留下crontab文件的一点内容
+- `crontab -u [userName]`,root可以指定用户名来操作某个用户的。
+- `crontab`从标准输入中读取crontab内容。^D会保存，^C就只是终止掉了，可以提供`-`作为文件名参数 让crontab从标准输入读取它的内容。
+- `/etc/cron.deny`,`/etc/cron.alllow`,指定了哪些用户可以提交crontab文件。`cron.alllow`一行一个用户没有被列出的用户不能调用crontab；没有上一个文件检查这个`cron.deny`被列出的用户不允许调用crontab
+- cron 除了检查每个用户的crontab外，还遵守系统的crontab，系统的在`/etc/crontab`文件中,`/etc/cron.d`目录下。配置格式稍有不同，在command之前多出一个userName字段，其中的命令能以任何用户身份执行。`/etc/cron.d`目录下的一般是软件包安装的crontab文件，习惯上用安装它的软件名命令，但也无所谓。
+- Linux发行版还会预先安装若干crontab配置项，例如`/etc/cron.daily`中的脚本每天运行，`/etc/cron.weekly`中的脚本没周运行一次。。。
 
 
 
@@ -545,7 +569,7 @@ linux 磁盘块设备文件名 /dev/sda
 
 - SATA 完全擦除，防止文件恢复，可以使用`hdparm`命令。
 
-- hdparm [opentios] device
+- `hdparm [opentios] device`hdparm命令提供了一个命令行的接口用于读取和设置IDE或SCSI硬盘。
 
 参数|作用
 -|-
