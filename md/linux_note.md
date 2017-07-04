@@ -665,17 +665,6 @@ LVM的命令以字母开头，字母表示命令在哪个抽象层面执行：pv
  - `tune2fs -j /dev/xx`把ext2转换为ext4
 - `fsck` 文件系统一致性检查
  - `sudo /sbin/tune2fs -c 50 /dev/xx`把执行文件系统检查的时间增加到50次挂载，默认是20次
-- dd 备份硬盘
- - if输出文件
- - of输出文件
- - bs以字节为单位的块的大小
- - count 被复制的块数
- - `dd if=/dev/xx of=/dev/xxx`备份到磁盘
- - `dd if=/dev/xx of /path/file`备份到文件
- - `dd if=/path/file of=/dev/xx`从文件恢复
- - `dd if=/dev/xx | gzip > /path/file.gz`压缩备份到文件
- - `gzip -dc /path/file.gz | dd of=/dev/xx`从压缩文件恢复
- - `dd if=/dev/xx of=/path/file count=1 bs=512`备份MBR表,MBR表在磁盘的第一块，恢复`dd if=/path/file of=/dev/xx`
 - 交换分区
  - `mkswap [device]`初始化交换分区
  - `swapon [device]`启用交换分区
@@ -683,10 +672,55 @@ LVM的命令以字母开头，字母表示命令在哪个抽象层面执行：pv
  - 交换分区也可以是一个文件
 
 
+## 备份
+给备份截止家劵标，文件系统的列表，备份日期备份格式，创建备份的确切命令语法等详细信息。
+很少修改的文件系统不必要频繁备份，某个静态文件系统中只有少数文件有变化，应该把这些文件复制到另一个定期做备份的分区中。
+### dump restore
+`dump`
+- 备份可以跨越多卷磁带；
+- 任何类型的文件，设置是设备都能被备份和恢复
+- 范文权限，归属关系，修改时间都被保留下来
+- 有“空洞”的文件能够得到正确的处理
+- 备份能都以增量的方式进行（只把修改过的文件些到磁带上去）
+- dump不关心文件名的长度，目录层次可以任意深
+- but 每个文件系统必须单独转储备份，只能转储本地计算机中的文件系统，NFS之类的不可以
+dump的增量要比tar的较为高级些
+
+- -u 在转储完成之后自动更新`/etc/dumpdates`文件，将日期转储几倍和文件系统的名称都记录下来。未使用-u那么所所有的转储级别都会变为0，将不会有先前备份过当前文件系统的记录。
+- -f 制定输出的位置，不适用-f 默认是主磁带机
+默认SCSI磁带涉笔的涉笔文件 倒带`/dev/st0`,非倒带`/dev/nst0`
+- 转储数据到一个远程系统时，必须把远程磁带驱动器制定为hosname：device的形式。`sudo dump -0u -f anchor:/dev/nst0 /spare`
+
+`restore`从转储中恢复
+- -r完全恢复整个文件系统
+- -i 从此带中读取备份目录，然后可以使用ls cd 这样的命令遍历转储目录，使用add 命令标价那些需要恢复的文件。选好后键入extract命令将文件从磁带中提取出来
+
+### tar
+tar的默认输出是磁带
+tar能保存文件的所有权信息和时间信息
+GUN的tar在创建是一个存档时-S选项能够聪明地处理空洞。
+
+### dd
+dd命令使用不正确的话会有时候会破坏分区信息。
+只能在两个大小完全相同的两个分区之间复制文件系统。
+- if输出文件
+- of输出文件
+- bs以字节为单位的块的大小
+- count 被复制的块数
+- `dd if=/dev/xx of=/dev/xxx`备份到磁盘
+- `dd if=/dev/xx of /path/file`备份到文件
+- `dd if=/path/file of=/dev/xx`从文件恢复
+- `dd if=/dev/xx | gzip > /path/file.gz`压缩备份到文件
+- `gzip -dc /path/file.gz | dd of=/dev/xx`从压缩文件恢复
+- `dd if=/dev/xx of=/path/file count=1 bs=512`备份MBR表,MBR表在磁盘的第一块，恢复`dd if=/path/file of=/dev/xx`
+
+Bacula/Amanda 企业级备份软件
+
 ## 用户
 ### `/etc/passwd`
 
-- `/etc/passwd`文件是系统能识别的用户的一份清单，but能够被目录服务扩展或替代，所以只有在单机系统上才是完整权威的。
+- `/etc/passwd`文件是系统能识别的用户的一份清单，but能够被目录服务扩展或替代，所以只有
+- 在单机系统上才是完整权威的。
 - 一个代表一个用户，共有七个字段用:分隔
 登录名:加密的口令或占位符:UID:GID:GECOS信息:主目录:登录shell
 - 加密口令实际被保存在`/etc/shadow`。散列+salt加密。MD5的口令以$md5$开头，SHA256以$5$开头
