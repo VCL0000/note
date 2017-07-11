@@ -164,6 +164,7 @@ uniq 命令的输入必须先排好序,因此通常把它放在 sort 命令之�
 `rar e xx.rar`
 
 ### 碎碎念
+- `cp -p` 保留文件的属性
 - `time commond` 命令运行的时间
 - `watch uptime` 以周期性的方式执行给定的指令
 - `time cat` 秒表一样
@@ -492,6 +493,7 @@ weekday|星期中的天|0~6(0=星期天)
 - `fuser -c [mountpoint]` 查找该该挂载点文件系统上某文件或目录的每个进程的PID，再加一串字母显示反应状态, -v显示进程相关信息。`lsof`比fuse更先进更复杂
 - 挂载iso `sudo mount -t iso9660 -o loop ~/download/linuxmint-18.2-cinnamon-64bit.iso /media/Mint`
 **fuser反应码**
+
 代码|含义
 ---|---
 f,o|进程有一个为了读或些而打开的文件
@@ -716,6 +718,8 @@ dd命令使用不正确的话会有时候会破坏分区信息。
 
 Bacula/Amanda 企业级备份软件
 
+## 系统日志和日志文件
+
 ## 用户
 ### `/etc/passwd`
 
@@ -788,17 +792,23 @@ xdev 将范围局限在当前的文件系统中
 `userdel -r [username]`
 
 
-## 包管理
 
-### apt-get 依赖问题
+## 软件安装和管理
+like UNIX都可以通过网络引导安装
+软件包二进制文件可以放到NFS中
+wrapper封装程序，能够解决依赖等
 
+### apt
+-yes选项，对任何确认性问题回答yes
+--download-only下载所有改动过的软件包，但是不安装，下载的软件包都保存在`/var/cache/apt`里
+
+#### apt-get 依赖问题
 - 强制安装依赖 apt-get -f install
 - 备份/var/lib/dpkg/info
 - rm /var/lib/dpkg/info
 - mkdir /var/lib/dpkg/info
 - apt-get install package
-
-### apt-get 清理包
+#### apt-get 清理包
 
 - apt-get purge / apt-get –purge remove
 删除已安装包（不保留配置文件)。
@@ -819,14 +829,19 @@ APT的底层包是dpkg, 而dpkg 安装Package时, 会将 *.deb 放在 /var/cache
 - 此时dpkg的列表中有“rc”状态的软件包，可以执行如下命令做最后清理：
 `dpkg -l |grep ^rc|awk '{print $2}' |sudo xargs dpkg -P`
 
+### apt-mirror
+apt源镜像
+`/etc/apt/mirror.list`是source.list的屏蔽版本
+
+
 ### 添加源
  - 源设置 `/etc/apt/sources.list`文件,`/etc/apt/sources.list.d`目录
  - `sudo apt-cdrom -m -d /media/Mint/ add` 添加镜像
 
 ### 更新
-- `sudo apt-get update`
+- `sudo apt-get update`更新缓存
 - `sudo apt-get upgrade`
-- `sudo apt-get dist-upgrade`
+- `sudo apt-get dist-upgrade`安装本地机器上安装过的任何软件包的新版本，处理依赖关系要比update聪明些。可能会删除它任务和跟新过的系统不兼容切解决不了的一些软件包，可能会有预期之外的后果。
 
 
 ### dpkg
@@ -840,10 +855,11 @@ APT的底层包是dpkg, 而dpkg 安装Package时, 会将 *.deb 放在 /var/cache
 
 ### rpm
 ```
--ivh 安装
+-i 安装
 -U 升级
 -e 卸载
--qa 查询
+-q 查询,只用于其他选项，必须给出一个标志来提出特定的问题，例如-qa查询已安装的软件包的完整清单
+--force 强制升级，但是会破坏依赖依赖关系
 ```
 
 ### alien
@@ -853,3 +869,310 @@ alien -r package.deb
 ```
 ### ldd
 `ldd commondPath`列出所有所需的运行时库
+
+## 驱动程序和内核
+- 内核包含设备驱动程序，设备驱动程序管理着内核与特定硬件的交互，内核的其余部分很大程度上与和别无关。
+- 内核可以把设备驱动程序和其他的内核功能按需添加，不需要重新构造内核，也不需要重启系统。驱动程序，文件系统同城都用模块实现。
+- linux 内核的构造目录`/usr/src/linux`,内核`/vmlinuz`/`boot/vmlinuz`
+- 驱动程序在设备可理解的硬件命令和内核使用的固定编程接口之间起转换作用。驱动程序的存在有助于内核合理的保持设备的独立性。
+- 对设备的用户级访问往往要通过位于/dev目录下的特殊设备文件，内核把对这些设备文件的操作映射到对驱动陈旭代码的调用上。
+### 设备文件
+- /dev中的设备文件都有与之先关的一个主设备号，和一个次设备号，内核用这些设备好把对一个设备文件的引用映射到相应的驱动程序上。主设备号标明与文件相关的驱动程序（设备类型），次设备号常常是制定给某种给定设备类型的特别实例。
+- `ls -l /dev/sda`;`brw-rw---- 1 root disk 8, 0 7月   6 20:59 /dev/sda`主设备号8，次设备号0，第一个SCSI磁盘。
+- 设备文件有两种块设备和字符设备，块设备每日操作一块数据（一组字节，通常是512的倍数），字符设备每次操作一个字节。
+- 设备驱动程序表示驱动程序到内核的一个标准接口。设备驱动程序没有控制实际的设备，这种不存在的虚拟设备被成为伪设备，`/dev/null`,`/dev/random`。
+
+### 创建设备文件
+- `mknod filename type major minor`filename要创建的设备文件；type c代表字符设备，b代表一个块设备；major 主设备号；minor次设备号。
+- 为一个已经在内核中存在的驱动程序创建一个设备文件，需要查看驱动程序的手册页，找到合适的主设备号和次设备号。
+- `udev`根据设备实际出现消失的情况动态的管理设备文件的创建好删除。射虎进程udevd监听内核传来的有关设备状态变化的消息。根据`/etc/udev`，`/lib/udev`中的配置信息在找到设备或断开设备的时候采取各种措施。默认情况下只在/dev里创建设备文件。
+- 设备文件名规范。既有块设备文件也有字符设备文件的设备，字符设备名通常以字母r开头，代表“raw”（/dev/da0，/dev/rda0）。另一种约定是把字符设备文件放在名字以r开头的子目录。but，r不总是暗指一个raw（原始）设备文件。
+
+### 配置Linux内核
+配置内核的基本方法
+- 修改可调（动态）的内核配置参数
+- 从头build一个内核
+- 随时把新的驱动程序和模块加入现有的内核
+- 通过内核加载程序（GRUB）在引导时刻提供操作指令
+
+#### 调整内核参数
+通过文件系统的/proc中的文件表示内核到用户的接口。`/proc/sys`下的特殊文件能够让用户查看和设置内核正在运行时的选项。but不是所有文件都是可写的与文件权限无关。可以在内核源码中的 Documentation/syscnt 中了解一些取值的含义。
+
+目录|文件|功能
+-|-
+C|autoeject|在卸载文件系统时自动弹出光盘
+F|file-max|设置打开的最大文件数
+F|inode-max|每个进程打开的最大索引节点数，程序要打开大量文件句柄，这个参数会有所帮助
+K|ctrl-alt-del|使用组合键时重启系统
+K|printk_ratelimit|内核消息最小间隔的秒数
+K|printk_ratelimit_burst|在实际printk速率限制之前连续出现的消息数量
+K|shmmax|设置对打共享内存的大小
+N|conf/default/rp_filter|启用IP源路由验证机制
+N|icmp_echo_ignore_all|设置1时忽略ICMP ping
+N|icmp_echo_ignore_broadcasts|设置1时忽略广播ping;设置1几乎总是个好主意
+N|ip_forward|设置1时允许IP转发，如果需要把主机单做路由器需要设置为1
+N|ip_local_port_range|指定在建立链接期间分配的本地端口范围。
+N|tcp_fin_timeout|指定等待最后FIN包1的秒数
+N|tcp_syncookies|保护不受SYN洪泛攻击，如果换衣收到（DoS）攻击，可以打开它
+
+`F=/proc/sys/fs`,`N=/proc/sys/net/ipv4`,`K=/proc/sys/kernel`,`C=/proc/sys/dev/cdrom`
+
+`sysctl` 能从命令行或文件中杜宇 variable=value对来设置各变量。`/etc/sysctl.conf`文件默认实在系统引导时读取，它的内容游湖设置参数的初始值。`sudo sysctl net.ipv4.ip_forward=0`关闭IP转发功能，也可以修改`/etc/sysctl.conf`。用`.`代替目录中的`/`就成为sysctl里用的变量名
+#### 构造Linux内核
+
+- 大多数发行版把内核的源码放在`/usr/src`下，系统在构造内核之前都要安装内核源代码包。
+- 配置内核的过程围绕着内核源代码根目录下的文件`.config`展开。内核的总有配置都在这个文件中指定的，`src/Documentation/Configure.help`里的指导可以了解各种不同的选项代表什么意思。
+- 为了避免人们直接编辑.config文件linux有几种make的目标体，能用不同的变体来配置内核。 `make xconfig` 提供KDE界面，`make gconfig`提供GNAOME界面，可以从图形配置界面总选择要添加到内核的设备（或者编译为可加载模块）,`make menuconfig`使用一种基于curses的字符界面，`make config`提供一种较老的风格。
+- 如果要把现有的内核配置到一个新版内核上（或者说内核源代码树里）`make oldconfig`读取以前的配置文件，并且只提出新出现的问题。
+- .config文件中的每个CONFIG行都是指一个特定得到内核配置选项。值为y将这个选项编译到内核中，m启用和这个选项但作为一个可加载模块。
+
+- 构建内核的二进制文件
+ - 最重要的部分就是设定一个合适的.config文件
+ - cd kernelPath
+ - make gconfig 或make ..
+ - make dep （2.6.x之后的不需要）
+ - make clean
+ - make
+ - make modules_install;
+ - 把 arch/i386/boot/bzImage 拷贝为 /boot/vmlinuz;
+ - 把 arch/i386/boot/System.map 拷贝为/boot/System.map
+ - 编辑`/boot/grub/grub.conf`(GRUB)为新内核加一行配置
+
+#### 添加设备驱动程序
+
+设备驱动程序一般会以下面三种形式之一发布
+- 正对某个特定内核版本的补丁
+- 可加载模块
+- 施加适当修补的安装脚本或软件包
+
+最常见的是针对某个特定内核版本的补丁。`cd kernel_src; patch -pl < patch_file`
+是把新的设备驱动程序集成到内核源代码树里。
+
+下例将假想的网络“snarf”驱动程序添加到内核中。
+- 在内核源代码目录树的drives子目录中可以找到与自己用的设备类型对应的子目录。最常添加驱动的目录有`block,char,net,scsi,sound,usb`,这些目录分别包含了块设备（IDE磁盘驱动器），字符设备（串口），网络设备，SCSI卡，声卡，USB设备的驱动程序。有些目录包含了总线本身的驱动程序（pci,nubus,zorro）用户不太可能会向这些目录添加驱动程序。有些目录包含了针对平台的驱动程序（macintosh,s390,acorn）
+- 举例的网络相关的设备，将驱动程序添加到dirvers/net目录中，然后修改下列文件
+ - drivers/net/Makefile，这样驱动程序会被编译
+ - drivers/net/Config.in，这样设备能出现在配置选项中。
+
+- 在把这个驱动程序的.c和.h文件都放到drivers/net/snarf下后，在dirvers/net/Makefile里加上这个驱动程序。添加一行 `objec-$(CONFIG_SNARF_DEV) += snarf`。这样的配置把驱动程序snarf（放到snarf/目录下）加入到了构造内核过程中。
+- 在把设备加到Makefile文件以后，必须保证在配置内核的时候配上和这个设备。所有的网络设备都必须列在文件drivers/net/Kconfig里。要加上这个设备，让它可以编译成为一个模块或者内核的一部分（与Makefile文件里的要求保持一致）就要加上这两行`config SNARF_DEV`,`tristate 'Snarf device support'`,cnfig 后的第一标记是配置宏，它必须和Makefile里CONFIG_后边的标记一致。关键字 tristate的含义是可以把这个涉笔编译成一个模块，如果设备不能编译成为一个模块，用bool代替tristate，下一个标记实在配置窗口上显示的字符串它可以是任意的文版，但应该说明正在配置的是什么设备。
+- 内核的设备驱动程序都用宏MODULE_DEVLICE_TAVLE自行登记。这个宏建立正确的末后联系，像`modprobe`这样的其他工具就能启用内核中的新设备。
+
+
+#### 可加载内核模块 LKM
+- 让一个设备的驱动程序或其他内核服务被链接到内核内部，或者在驱动程序正在云信时，从内核中把它删除掉，不需要改变内核的二进制文件。
+- 可加载模块放在`/lib/modules/[version]`目录中,version是指`uname -r`返回的内核版本号，可以使用`lsmod`来检查当前加载的模块
+- `sudo insmod /patg/to/snarf.ko`加载snarf内核模块。`sudo insmod /path/to/snarf.ko io=0xXXX irq=X`给加载内核传递参数。
+- 手工把一个内核加载模块插入到内核里之后，只有明确请求删除它，或当系统重启时，才能把它删掉。任何时候都可以使用`rmmod`命令，但是只有当前对这个模块的引用数为0，这个命令才能起作用，（lsmod输出里 Usered列给出的值）
+- 还可以用`modprobe`半自动的加载linux的LKM，modprobe封装了insmod命令。modprobe使用`/etc/modprobe.conf`文件来推断出如何处理每个模块。`modprobe-c`可以动态的生成一个与当前已安装的内核模块相对应的`/etc/modpeobe.conf`文件，modprobe还可以理解`install`，`remove`语句，当从运行的内核中加载/卸载某个特定模块时，这些语句可以让这些命令得以执行。
+
+**udev**
+设备的越来越多，使得设备标识保持不变这一问题更加恶化了
+`udev`依靠`sysfs`来了解系统的设备会发生什么情况，使用一系列udev特有的规则来理解合适的命名约定。udev把设备文件自动放到/dev目录下，而且对这个目录造成的破坏最小。只有系统当前能用的设备才在/dev下有文件。
+
+
+- udev依靠一嘴规则来知道它对设备的管理以及给设备命令，默认的规则在位于`/lib/udev/rules.d`目录下，本地规则在`/etc/udev/rules.d`。主空配置文件`/dev/udev/udev.conf。
+
+**sysfs**
+`sysfs`,在内存里的虚拟文件系统，提供了系统上可用设备，设备的卑职及其状态的信息，这些信息组织清晰，内容详尽。
+sysfs安装在`/sys`目录，/sys目录里的每个文件指标是下层设备的一个属性，这个乐町给原本混乱的数据集富裕了一定的结构性。
+
+目录|说明
+-|-
+block|有关磁盘这样的块设备的信息
+bus|内核知道的总线：PCI-E，SCSI，USB和其他总线
+class|按设备的功能类型（声卡，显卡，网卡等）组织的树
+dev|区分块设备和字符涉笔的设备信息
+devices|正确表示所有找到的设备
+firmware|特定于平台的子系统的接口如ACPI
+fs|内核知道的一些但不是全部的文件系统的目录
+kernel|内核的内部，如高速缓存和虚拟内存状态
+module|内核动态加载的模块
+power|系统电源状态的几种详细信息，大都不用
+/proc有进程和内核正在运行时刻的信息，但是设备特有的所有信息则会逐步转移到/sys
+
+**udeadm**浏览设备
+- udevadm命令查询设备信息，触发时间，控制udevd守护进程还会见识udev和内核的事件。
+- 第一个参数是下列枚举值info,trigger,settle,control,monitor,test
+- info输出设备特有的信息，contril启动和停止udev或者命令udev重新加载它的规则文件，monitor在事件发生的同时就显示它们。
+`udevadm info -a -n sdb`显示sdb这个设备所有udev属性。输出里的所有目录都是/sys的相对目录。
+
+## 网络
+TCP/IP五层模型“物理层 链路层 网络层 传输层 应用层”
+数据以分组的形式在网络上传输，每个包由头和体构成，上层协议的体是下层协议的全部
+一台网帧头|IP包头|UDP包头|应用程序数据|以太网
+^			   udp包				 $
+^		 IP包					 $
+^以太网帧								$
+最大传输单元（MTU）两种处理方式路由器分片，路由器返回ICMP出错消息发送段重新分片
+### 分组地址
+- 硬件(MAC)地址
+- IP地址
+ - DNS映射`/etc/hosts`
+
+**IP地址分类**
+IP地址根据最左边哪个字节的第一个比特位进行分类，分为5类。这种分类指定了哪些字节是网络部分，哪些字节是主机部分。路由系统用一个明确的掩码来指定网络部分，没给出明确划分的时候任然默认采用传统的分类。网络部分用N表示，主机部分用H表示
+
+地址类型|第一个字节|格式|说明
+-|-
+A|1~126|N.H.H.H|美国国防部保留
+B|128~191|N.N.H.H|大型网点，通常要划分子网
+C|192~233|N.N.N.H|容易得到常常成组获得
+D|224~239|-|组播地址，不是永久分配的
+E|240~255|-|实验地址
+0是特殊值，正规的IP地址是第一个字节不用0,127为环回地址保留
+
+**子网**
+通过指定一个明确的4字节“子网掩码”重新划分地址的主机部分和网络部分，对应一个IP地址网络部分的各个网络掩码位被设置为1，而主机位设置为0。比特位1必须从最左变开始而且连续。网络部分必须至少有8位而主机部分至少有2位。
+B类地址4字节通常表示为N.N.H.H，点分十进制为255.255.0.0。子网掩码是255.255.255.0地址就是N.N.N.H。子网掩码可以把一个单独B类地址转换为256个不同的类似C类的网络。每个网络都能支持254台主机
+
+CIDR无类域间路由
+
+**私用地址和NAT**
+
+保留部分地址不在Internet上出现。边界路由器能够在私用地址空间和ISP分配的地址空间之间进行转换。
+一个A类，16个B类，256个C类，这些地址不在全网内分配，但可以在任意站点内部使用
+
+IP分类|范围
+-|-
+A|10.0.0.0~10.255.255.255
+B|172.168.0.0~1172.31.255.255.255
+C|182.168.0.0~192.168.255.255
+边界路由器上运行一个名为NAT（网络地址转换）的系统，NAt截取带有只带内部使用的地址包，然后用一个真是的外部Ip地址，获取还会有一个不同的端口号来改写这些包的源地址。NAT还维护着一张内外地址/源端口对之间的映射表，这样应答包到达的时候就可以进行反向转换了。
+
+**路由表**
+`netstat -r`-n避免做DNS查询，`ip soute show`
+Destination（目的地）字段通常就是一个网络地址，Gateway（网关）字段必须是一个为完整的IP地址，这个地址是本地网络接口的地址或者临接主机的地址。Linux 0.0.0.0表示默认网关。
+为了到达目的地，必须通过Iface（网络设备）把包发往网关。主机可以将包只路由到直接链接到和他们同在一个网络上的网关计算机。
+路由表
+路由表可以静态配置也可以动态配置，只要系统还在运行静态路由就应该在路由表里。通常是通过一个系统启动脚本在系统引导时设置的。
+`route add -net 132.236.220.64 netmask 255.255.255.193 gw 132.236.212.6 eth1`,`route adddefault ge 132.236.271.1 eth0`
+
+**DHCP**
+动态主机配置协议
+一个设备或计算机要加入网络的时候，它通常要在网络上为它自己获取一个IP地址，设置一条正确的默认路由，还要让它自己能连上一台本地的DNS服务器。
+DHCP客户机从中央服务器“借用”各种网络和管理参数。
+
+## 网络文件系统
+### NFS
+- ubuntu 需要安装`nfs-common`,`nfs-kernel-server`
+- 第三版中mountd服务用于挂在请求，nfsd服务用于实际的文件服务。下层系统依赖的协议是RPC（从而要求运行portmap）
+- NFSv4不需要mountd，除非客户机和服务端都用NFSv4否则应该保持mountd运行。
+- 在NFS服务器上`mountd` `nfsd` 应该在引导系统时运行。如果配置了任何exports目录那么系统启动脚本一般会自启动这些程序
+- 各系统上的启动脚本
+ - Ubuntu `/etc/init.d/nfs-kernel-server`,`/etc/init.d/nfs-common`
+ - Red Hat `/etc/rd.d/init.d/nfs`
+- NFS使用一个访问控制数据库来说明：应该导出哪些文件系统，哪些客户机可以挂载导出的文件系统。这个数据库供运行用的副本通常保存在`xtab`文件，另外还保存在内核的内部表里。可以使用`exportfs`来添加和修改该文件中的配置项。`exportfs -u`从导出表里删除配置项。
+- `/etc/exports` 是导出目录的权威说明清单，`exportfs -a`命令可以读出这个文件的内容。exports文件修改过之后需要运行`exportfs -a`
+- NFS是在逻辑层面上处理文件系统的。导出目录不必是一个挂在点或是一个物理文件系统的根。然而为了安全起见，NFS特别注意文件系统之间的接线，并要求每个设备单独导出。例如一台把/users设为单独一个分区的机器上，可以导出根目录的同时又不会导出/users。同时如果服务器导出了/path1/path2，客户机可以只挂载/path1/path2/path3，并且忽略path3目录下的内容。
+- exports文件最左边一列是被导出的目录列表，后边是相关的选项`/home -vers=4,sec=sys,access=harp.atrust.com`,/home可以被harp.atrust.com挂载，挂载采用NFS协议第四版和UNIX身份验证。没有制定主机的话通常可以被所有的机器挂载
+- `/etc/exports`导出选项
+选项|说明
+-|-
+ro|以只读方式导出
+rw|以读写方式导出（默认方式）
+rw=list|大多数客户机为只读，list列出的主机允许以可些方式挂载NFS，其他所有主机必须以只读方式挂载
+root_squash|将UID 0和GID 0映射成anonuid anongid所制定的值，只是默认方式
+no_root_squash|允许root正常访问，这很危险
+all_squash|将所有的UID和GID映射到它们各自的匿名版本上。用于支持PC和不可信的单主机
+anonuid=xxx|指定远程root账号应被映射到的UID
+anongid=xxx|指定远程root账号应被映射到的GID
+secure|远程访问必须从授权端口发起
+insecure|允许从任何端口远程访问
+noaccess|防止访问这个目录及其子目录（用户嵌套导出）
+wdelay|为合并多次更新而延迟写入磁盘
+no_wdelay|尽可能块地把数据写入磁盘
+async|让服务器在世界写磁盘之前就先回应写请求
+nohide|暴露在导出的文件树中挂载的文件系统
+hide|与nohide的作用相反
+subtree_check|核实内个被请求的文件偶读位于导出的目录子树里
+no_subtree_check|只核实涉及被导出的文件系统的文件请求
+secure_locks|要求所有上锁的请求都要有授权
+insecure_locks|指定较为宽松的上锁条件
+sec=flavor|制定导出目录所采用的安全方法列表。flavor的值包括sys（UNIX身份验证）,dh(DES),krb5(Kerberos身份验证),krb5i（Kerberos身份盐城和完整性）,krb5p(KERberos验证 完整性和隐私性),none（匿名访问，不推荐）
+fsid=num|指定NFSv4的为文件系统根（通常为0）
+
+Linux的NFS服务器有个不寻常的特性，允许已被导出的目录的子目录以不同的选项再被导出。还提供noaccess选项，不导出不想共享的子目录
+```
+/home		*.atrust.com(rw)
+/home/ben	(noaccess)
+```
+允许atrust.com域内的主机可以访问/home下除/home/ben之外的所有内容。
+
+#### 客户端NFS
+mount可以理解 hostName:directory
+`showmount -e [hostName]`核实服务器导出的文件系统
+`mount -t nfs [host]:[path] [mountPoint]`挂在NFS文件系统
+NFS的挂载标志和选项
+
+标志|说明
+-|-
+rw|以读写方式挂载文件系统（也必须以同样的方式来导出）
+ro|以只读方式挂载文件系统
+bg|如果挂载失败（服务器没有响应），后台一直尝试，继续发其他的挂载请求
+hard|如果服务器宕机，让试图访问它的操作被阻塞，知道服务器恢复为止。
+soft|如果服务器宕机，让试图访问它的操作失败，返回一条错误消息。这项功能对于被避免进程“挂”在无关紧要的挂载操作上说非常有用
+intr|允许用户终端被阻塞的操作（并且让他们返回一条出错消息）
+nointr|不允许用户中断
+retrans=n|制定以软方式挂载的文件系统上，在返回一条出错消息之前重复发送请求的次数
+timeo=n|设置请求曹氏时间（单位十分之一秒）
+rsize=n|设置读缓冲的大小为n字节
+wsize=n|设置写缓冲的大小为n字节
+set=flavor|指定安全类型
+vers=n|设置NFS协议的版本
+proto=proto|选择一种传输协议；对于NFSv4来说必须是tcp
+man手册页给出了vers标志，但是用这个标志则会出错。要使用NFSv4协议来瓜子啊文件系统的话要使用 `mount-tnfs4`命令
+
+`nfsstat`显示NFS系统维护的各种统计信息。`nfsstat -s`显示NFS服务器进程的统计信息，`nfsstat -c`显示与客户端操作先关的信息，默认显示所有协议版本的统计信息
+
+**自动挂载**
+- 挂载守护进程在文件系统被访问到时就挂载文件系统，而不再需要文件系统时就卸载它们，这样可以来解决一些问题。自动挂载程序把活动挂载点的数目限定在一定范围内。大多数自动挂载程序还可以提供一些列“复制的”（等同的）文件系统。现在使用的是一种驻留内的的文件系统驱动程序autofs。
+- automount可以理解三种不同的配置文件（称为映射）：直接，简介，主控映射。直接映射和简介映射提供了有关要自动挂载的文件系统信息。主控映射列出了automount应该注意的直接和简介映射。一次只有一个主控映射出于活动状态，默认的主控映射保存在/etc/auto.master
+- 如果改变了主控映射或者它所援引的直接映射之一，那么就必须重新运行automount来读取改动，-v 显示它对自己的配置正在做的调整，-t 自动挂载的文件系统保持多久未用之后接卸载的时间（单位为秒）默认值通常是10分钟。
+ - 间接映射文件，把几个文件系统自动挂载在同一个目录下。不过目录的路径在主控映射文件中设定，不需要在间接映射文件自身里设定。这个例子（或许保存在/etc/auto.harp文件里）
+```
+users 		vcl0000:/harp/users
+devel -soft vcl0000:harp/devel
+info  -ro	vcl0000:/harp/info
+```
+ - 直接映射文件，列出没有共同前缀的文件系统，描述自动挂载的文件系统的直接映射文件（/etc/auto.direct）
+```
+/usr/src vcl0000:/usr/src
+/cs/tools -ro vcl0000:/cs/tools
+```
+automount知道该目录下子目录的内容被访问过之后才会显示它们（ls不能直接访问自动挂载目录的内容，所以不会让这些目录被自动挂载）
+ - 主控映射文件，列出auto应该注意的直接和间接映射。对于每个间接映射文件，主控映射文件还制定了在该映射中定义的挂载文件所在的根目录。上栗所示的之间和间接映射文件的主控映射文件
+```
+/harp 	/etc/auto.harp -proto=tcp
+/-		/etc/auto.direct
+```
+第一列是间接映射的本地目录名，或者特殊记号/-表示直接映射，第二列给出保存映射的文件。每种类型可有几个映射文件。如果一行的末尾制定了挂载选项，那么这些选项将成为该映射文件中所有挂载的默认选项。Linux一定要给NFSv4服务器指定`-fstype=nfs`这个标志
+
+## 共享系统文件
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+end
