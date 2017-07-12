@@ -257,6 +257,7 @@ commond|选项
  - –http-user=USER设置HTTP用户
  - –http-passwd=PASS设置HTTP密码
 #### **curl**
+
 选项|含义
 ---|---
 -C|在保存文件时进行续传
@@ -1067,6 +1068,7 @@ DHCP客户机从中央服务器“借用”各种网络和管理参数。
 - NFS是在逻辑层面上处理文件系统的。导出目录不必是一个挂在点或是一个物理文件系统的根。然而为了安全起见，NFS特别注意文件系统之间的接线，并要求每个设备单独导出。例如一台把/users设为单独一个分区的机器上，可以导出根目录的同时又不会导出/users。同时如果服务器导出了/path1/path2，客户机可以只挂载/path1/path2/path3，并且忽略path3目录下的内容。
 - exports文件最左边一列是被导出的目录列表，后边是相关的选项`/home -vers=4,sec=sys,access=harp.atrust.com`,/home可以被harp.atrust.com挂载，挂载采用NFS协议第四版和UNIX身份验证。没有制定主机的话通常可以被所有的机器挂载
 - `/etc/exports`导出选项
+
 选项|说明
 -|-
 ro|以只读方式导出
@@ -1121,6 +1123,7 @@ wsize=n|设置写缓冲的大小为n字节
 set=flavor|指定安全类型
 vers=n|设置NFS协议的版本
 proto=proto|选择一种传输协议；对于NFSv4来说必须是tcp
+
 man手册页给出了vers标志，但是用这个标志则会出错。要使用NFSv4协议来瓜子啊文件系统的话要使用 `mount-tnfs4`命令
 
 `nfsstat`显示NFS系统维护的各种统计信息。`nfsstat -s`显示NFS服务器进程的统计信息，`nfsstat -c`显示与客户端操作先关的信息，默认显示所有协议版本的统计信息
