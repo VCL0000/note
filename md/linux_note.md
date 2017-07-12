@@ -1152,9 +1152,29 @@ automount知道该目录下子目录的内容被访问过之后才会显示它�
 第一列是间接映射的本地目录名，或者特殊记号/-表示直接映射，第二列给出保存映射的文件。每种类型可有几个映射文件。如果一行的末尾制定了挂载选项，那么这些选项将成为该映射文件中所有挂载的默认选项。Linux一定要给NFSv4服务器指定`-fstype=nfs`这个标志
 
 ## 共享系统文件
+CIFS实质上是SMB的一个版本
+### Samba
+UNIX的CIFS服务器
+Samba不仅童工CIFS提供文件服务，而且还能执行一个Windows主域控制器的所有基本功能，作为一个域控制器，Samba支持的高级特性如Windows域登录，Windows用户特性描述文件的漫游以及CIFS假脱机打印。
+smbd nmbd
+smbd实现文件和打印服务，还有验证和授权功能。nmbd提供别的CIFS主要部件：名字解析和服务声明。
+smb.conf `/etc/samba/smb.conf` or `/etc/smb.conf`
+`encrypt passwords = true`,windows客户机和Samba服务器之间交换的口令进行加密，这是默认选项。
+smbpasswd来设置口令`sudo smbpasswd -a [userName]`,`smbpasswd -r smbserver -U [userName]`
+smbclient命令行文件传输程序。
+CIFS可以被mount挂载
+`sudo mount -t cifs -o username=joe /path /mountPoint`
+配置中的这个需要解开注释`browseable = yes`
+`sudo /etc/init.d/samba restart`重启服务。
 
 
+## X Windows
 
+远程桌面链接
+
+remmina
+remmina-plugin-drp
+remmina-plugin-vnc
 
 
 
