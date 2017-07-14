@@ -39,10 +39,6 @@ timestampformat="[x]"|源表中的时间戳的格式
 db2move sample export
 db2move sample import
 
-#### db2look
-可以将DDL语句，数据库统计状态，表空间参数导出，这个导出可以用于不同系统的数据库
-`db2look -d sample -l -e -o sample.ddl`
-d databaseName,l layout(tablespaces & bufferpools),e DDL,t tableName,o outputFile
 
 ### 导入
 权限
@@ -69,19 +65,71 @@ load 分为load build delete 三个阶段对硬盘上的数据页面直接进行
 `load from employee.ixf of ixf replace into employee_copy`
 set integrity检查数据的一致性`SET INTEGRITY FOR employee_copy ALL IMMEDIATE UNCHECKED`
 
+## 备份升级相关
 
+- 备份实例设置`db2support [path] -d sample -cl 0`备份当前实例和数据库配置信息，-cl 0 会手机数据库系统目录，数据库和实例配置参数，db2注册变量的配置等。
+- 备份每个数据库的package信息`db2 list packages for all show detail > packages.file`
+#### db2look
+- 可以将DDL语句，数据库统计状态，表空间参数导出，这个导出可以用于不同系统的数据库
+  - `db2look -d sample -l -e -o sample.ddl`
+  - d databaseName,l layout(tablespaces & bufferpools),e DDL,t tableName,o outputFile，x生成用户权限相关的DDL,z schema
 
+停止所有连接`db2 force applications all`
+停止所有连接，停掉实例`db2stop force`
 
+#### 升级
+安装新版本->(检查是否可以升级)升级实例->升级库
+`db2ckupgrade`检查是否可以成功升级。
+在安装过的新版的../instance目录下执行
+`./db2iupgrade -u db2fenc1 [instance]`
+`db2 upgrade database sample`将库升级
 
+`db2rbind dbname -l [file] all`重新绑定package
 
+## 实例管理
+#### db2 存储模型
+表空间->容器->extent->page
+page 4k 8k 16k 32k
 
+`db2 get db cfg for [dbName]`获取数据配置
 
+`db2 "create database [dbName] automatic storage yes on / dbauto dbpath on [databasePath] using codeset utf-8 territory cn collate using system"`
 
+codeset 编码集，territory 区域。数据库一旦创建编码就无法改变。不指定9.5之后默认为utf-8。
 
+创建数据库时，db2会创建三个默认的表空间，系统表空间（system tablespace）用来春初系统表，也就是数据字典的信息，一个数据库只能有一个系统表空间;临时表空间(temporary tablespace)用来保存语句执行时产生的中间临时数据，如join 排序等操作都会产生一些临时数据;用户表空间(user tablespace)用来存储表，索引，大对象等数据。
+### 表空间
+#### 创建表空间
+- `db2 "create bufferpoll bp32k size 10000 pagesize 32k"`
+- `db2 "create large tablespace [tbs_data] pagesize 32k managen by database using (file '/path/file 100M',file '/path/file2 100M') extentsize 32 prefetchsize automatic bufferpool bp32k no file system caching"`managed by datbase 表示空间的分配和管理由db2负责，即DMS；using 指定表空间的容器，DMS支持的容器类型是文件和裸设备；DMS类型的表空间在创建时即分配表空间，创建后可以对表空间容器就行增删改。数据建议用DMS管理
+- `db2 "create temporary tablespace [tbs_temp] pagesize 32k managen by system using ('path/file') bufferpool bp32k"`系统临时表空间， managed by system 空间的分配和管理由操作系统负责，即SMS；SMS支持的容器类型只能是目录，并且无需指定大小，只要路径所属的文件系统有空间；SMS性能逼DMS差一些；临时表空间，建议用SMS管理。
+- `db2 "create user temporary tablespace [tbs_user_temp] pagesize 32k managed by system using ('path/file') bufferpool bp32k"`，用户临时表空间。
+- `db2 "create tablespace [tbs_index] pagesize 32k bufferpool bp32k"`，自动存储管理表空间（automatic storage）无需指定容器类型和大小，实际上底层任然是DMS SMS，只是容器不需要指定；自动存储表空间的数据在建库时指定的 ON目录；只有建库时启用了 automatic storage yes，表空间才支持自动存储管理。
+- `db2 "create tablespace [tbs_data2] initialsize 100M increasesize 100m maxsize 1000G"`
 
+#### 更改表空间
+- 若表空间容器对应的存储中还有未分配空间，可以通过 alter tablespace的extend 或resize选项扩展已有表空间容器的大小,`db2 "alter tavlespace [data_ts2] extend (file 'path/file' 10M,file 'path/file1' 50G)"`,在每个容器上扩展50GB。
+- 表空间容器对应的存储中没有剩余空间时，可以通过alter tablespace 的 add 选项增加新的容器。add增加的容器会在容器间进行数据 rebalance(数据重新平衡)数据大的话rebalance时间回比较长。`db2 "alter tablespace [data_ts2] add (file 'path/file' 50G)"`
+- alter tablespace begin new stripe set,已有容器使用完后新增家容器。不会rebalance，但会造成数据偏移，`db2 "alter tablespace [data_ts2] begin new stripe set (file 'path/file' 10M)"`
+- 自动存储管理的表空间，无法在表空间级进行容器更改，只能在数据库级别，自动存储路径实在建库是指定的。可以通过 add storage on 选项为数据库添加新的存储路径。`db2 alter database [dbName] add storage on [dbpath]`
+- 只要对自动存储表空间执行了rebalance操作，就可以立即使用这个存储路径，不用等到存储路径文件系统空间满了。
+- 更该容器管理类型，DMS向自动存储路径迁移数据是要话花费一些时间做数据重新平衡操作，`db2alter tablespace [ts4] managed by automatic storage`，`db2 alter tablespace [ts4] rebalance`.
 
+#### 表空间状态
 
+- quiesced,表空间只读`db2 quiesce tablespaces for tale [schema.table] share`,`db2 quiesce tablespaces for tale [schema.table] reset`
+- backup pending,归档日志模式下，表空间前滚/load ... copy no,表空间处于该状态
+- drop pending,重启数据库时，如果一个或多个容器有问题，表空间不再可用。
 
+#### 表空间信息
+- 获取表空间信息，`db2 get snapshot for tablespaces on sample `
+- 表空间的配置信息，使用情况和容器信息`db2pd -d sample tablespaces`
+- 查看表空间，`db2 list tablespaces show detail `/`db2 list tablespace containers for [tablespaceId] show detail`
+- 更加详细的表空间信息，`db2 get snapshot for tablespaces on [dbName]`
+
+SMS表空间无法通过命令监视，只受文件系统限制。
+
+#### 表空间高水位
 
 
 
