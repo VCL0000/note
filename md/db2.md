@@ -130,6 +130,75 @@ codeset 编码集，territory 区域。数据库一旦创建编码就无法改�
 SMS表空间无法通过命令监视，只受文件系统限制。
 
 #### 表空间高水位
+- HWM,DMS表空间的属性，代表表空间当前分配的最高页数，这个值Kenneth大于已经使用的页数（userd pages）
+- alter tablespace 的 reduce resize drop 选项对表空间进行更改时，如果更改后的页数小于HWM的值，操作将会失败。
+- db2dart 的 DHWM选项显示HWM相关信息，`db2dart sample /DHWM`
+  - LHWM选项提供降低HWM的建议和方法，`db2dart sample /LHWM`，如重组（reorg），数据导出加载（export/load），删除重建（export/drop/create/load）。表在离线重组（reorg）时会保留原数据，同时在表空间内进行一份数据复制，当复制结束后删除原表数据块，如果没有足够的空间保存数据复制，HWM反而会增加。
+  - RHWM,删除占据HWM的空SMP块。SMP块用来标识该块映射的一组extents是否可用，如果一个空SMP占据了HWM，可以来降低`db2dart sample /RHWM`。
+  - 9.7之后创建的DMS表空间可以通过alter tablespaces 降低HWM，`db2 alter tablespace [data_ts1] reduce MAX`
+
+
+### 备份
+#### 离线备份
+- 断开连接，关闭数据库，`db2stop force`
+- 启动数据库,`db2start`
+- 显示所有数据及其路径列表，`db2 list database directory`
+- 显示所有活动的数据，`db2 list activce databases`
+- 失效数据库实例,`db2 deactivate database [sample]`
+- 数据库的备份和恢复，不能跨平台恢复。离线备份,`db2 backup database [sample] to [path]`
+- 恢复到相同数据库`db2 restore database [sample] from [path]`
+-恢复到不同数据库,`db2 restore database [sample] from [path] into [otherDatabase]`
+- `db2 list history backup all for [sample]`,查看备份记录
+
+#### 在线备份
+- 显示配置信息,`db2 get db cfg for [sample]`
+- 启用日志归档模式,`db2 update db cfg for [sample] using LOGRETAIN ON`
+- 设置日志归档目录,`db2 update db cfg for [sample] using LOGARCHMETH1 DISK:[path]`
+- 做一次离线备份，否则数据库会登录不了[如果提示有连接无法备份，请参考db2离线备份],`db2 backup db [sample] to [path]`
+- 在线备份--备份日志（首个活动日志到当前日志会一同备份到备份文件里）,`db2 backup db [sample] online to [path] include logs`
+- 从包含日志的备份集恢复(恢复同一个数据库 into [sample] 可省略)。要导入的数据库的归档目录不要和备份恢复的日志目录相同。`db2 force applications all`,`db2 RESTORE db [sample] FROM [backupPath] taken at 20130618142149 into [sample] LOGTARGET [logPath]`
+- 前滚。由于从备份成功到数据库崩溃的时间间隔会产生其他的归档日志，可以将这些日志拷贝到/data/db2data/logs/中，或者直接从归档日志目录进行前滚，同"从不包含日志的备份集恢复"中的"前滚"。`db2 "rollforward db [sample] to end of logs and stop overflow log path([logPath])"`
+
+## 数据对象
+### 模式
+`create schema [schemaName]`,显示创建，隐式创建是在建表的时候指定。
+`syscat.schemata`,查看数据数据库创建了哪些模式
+相关系统模式
+- `SYSIBM`，模式下的对象存储的是系统数据字典表
+- `SYSCAT`，模式下的对象是系统视图，可通过查看这些视图查看各种数据对象信息。
+- `SYSIBMADM`，系统管理视图模式
+- `SYSSTAT`，统计视图模式，有9个视图，用来为db2优化器提供统计信息
+### 表
+`db2 describe table [schema.table]`,查看表字段及数据类型
+`db2 list tables for schema [schemaName]`,查看某个模式下的表名视图和alias别名。
+`db2 list tables for all`,查看所有模式下的表名视图和alias别名
+`db2 list tables`，查看以当前连接用户作为模式名下的表名等。
+通过`SYSCAT.TABLES`系统视图查看表定义，所属表空间等。`SELECT SUBSTR(TABSCHEMA,1,32) AS TABSCHEMA,SUBSTR(TABNAME,1,32) AS TABNAME,TBSPACEID FROM SYSCAT.TABLES WHERE TABSCHEMA='[TEST]'`
+### 表约束
+
+- 非空约束not null,唯一性约束unique,主键约束primary key,外键约束foreign key,检查约束check（检查约束如同枚举）。
+- `alter table [tableName] add constraint [PKName] primary key([columnName])`
+- `alter table [tableName] add unique[columnName]`
+- `alter table [tableName] add constraint [Name] check ([column] in ('A','B','C'))`
+
+- 通过系统视图查看数据库中定义的约束，`SELECT SUBSTR( CONSTNAME, 1, 18 ) AS CONSTNAME, SUBSTR( TABNAME, 1, 18 ) AS TABNAME, SUBSTR( FK_COLNAMES, 1, 14 ) AS FK_COLNAMES, SUBSTR( REFTABSCHEMA, 1, 14 ) AS REF_SCHEMA, SUBSTR( REFTABNAME, 1, 14 ) AS REF_TABNANE, SUBSTR( PK_COLNAMES, 1, 14 ) AS K_COLNAMES, DELETERULE FROM SYSCAT.REFERENCES WHERE TABSCHEMA = 'TEST'`
+- 通过`syscat.checks`视图查看数据中定义的检查约束，`SELECT TABNAME,SUBSTR(TEXT,1,500) FROM SYSCAT.CHECKS`
+
+- 删除约束，`alter table [tableName] drop constraint [constName]`
+
+### 表状态
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
