@@ -12,3 +12,7 @@ ssh 免密 push
 `~/.ssh/id_rsa.pub`公钥的位置，添加到github上。
 `ssh -T git@github.com`，测试连通性
 修改`.git/config`文件，将url改为ssh的地址。
+
+
+`git checkout [fileName]`撤销从上次commit的修改
+`git commit --amend`,修改提交信息
