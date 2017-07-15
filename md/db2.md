@@ -13,6 +13,7 @@
 `db2 describe data partitions for table schema.table show detail`|查看分区表分区 show detail 可以查看表空间信息
 `db2look -d [dbName] -e -a -x -i [userName] -w [passWord] -o [DDLFile]`|导出表结构
 `db2move [dbName] export -u [userName] -p [password]`|导出数据
+`db2 grant control on table [schema.table] to user [userName]`|授权
 
 
 
@@ -187,6 +188,7 @@ SMS表空间无法通过命令监视，只受文件系统限制。
 - 删除约束，`alter table [tableName] drop constraint [constName]`
 
 ### 表状态
+
 
 
 
