@@ -185,6 +185,7 @@ INSERT_UPDATE|主键更新
 REPLACE|将表中的数据全部删除
 REPLACE_CREATE|目标表存在删除后插入，目标表不存创建表创建索引，然后导入。输入文件必须是PC/IXF格式的文件。如果目标表是被一个外键引用的一个父表，那么就不能使用。
 CREATE|创建表和索引，然后导入数据，同时可以指定表空间。文件必须是PC/IXF格式。
+
 `import from employee.ixf of ixf replace_create into employee_copy`
 `commitcount [N/automatic]`,避免事务日志满和锁升级。`commitcount automatic` ,import命令自动选择合适提交，默认会自动使用automatic选项
 `allow write access`，允许其他应用读写。
@@ -281,8 +282,43 @@ SAMPLE.0.DB2.NODE0000/CATN0000.20110415102710.001
 ## 运维
 runstats(收集统计信息，为db2优化器提供最佳路径选择),reorgchk(重组前检查),reorg(重组，减少表和索引在五路存储上的碎片),rebind(对包，存储过程，或者静态程序进行重新绑定)
 
+### runtatus
+- `runstatus on table <schema>.<tableName> on all columns with distribution and detailed indexes all`,手机统计信息，包括数据分布。
+- `runstatus on table <schema>.<tableName> for indexes all`,手机索引统计信息，如果表上没有统计信息，会同时对表做统计，但是不会手机数据分布信息。
+- `runstatus on table <schema>.<tableName> tablesample bernoulli(10)`,(伯努利10%抽样统计)使用伯努利算法抽样统计，扫描每一行数据，但是只对一定比例抽样数据进行统计，适用于大表，大表的全表统计比较消耗资源。
+- `select char(tabname,20) as tabname,stats_time from syscat.tables where stats_time is null`,stats_time 字段为空值表明没有收集过统计信息，否则会显示统计信息的时间。
+- `reorgchk update statistics`对所有表手机统计信息，但是不会收集分布统计。
+- runstats:allow write access,runstatus时其它应用可以读取和修改，默认行为;allow read access，只能读取无法修改。
+### reorg
+- 数据夸页，甚至有些页为空页，数据不连续。
+- `db2 reorgchk on schema <schemaName>`,如果输出中F1，F2，F3标记为*则需要reorg；如果索引统计结果F4-F8有*，则需要对索引reorg。
+- 离线reorg，支持allow read access (默认),allow no access。离线reorg采用影子拷贝方法。离线索引可以通过`index index-name`选项指定根据哪个索引进行重组，如果定义了聚集索引即使灭有指定索引，默认也会按照聚集索引重组表。reorg分为四个阶段
+ - scan-sort,根据reorg指定的索引对表数据进行扫描，排序。
+ - build，根据第一阶段结果进行构建
+ - replace(copy)，用新数据替换原有数据
+ - index rebuild，基于新数据重建索引。
+- `db2 get snapshot for tables on <sample>`,进行reorg监控。
+- `db2pd -d <sample> -reorg`获取当前正在执行的和近期完成的重组信息。`db2 list history reorg all for <sample>`,获取表或索引重组信息。
+- 在线reorg(inplace reorg)，在原空间中进行，表数据重组是分批次的，比离线reorg慢的多，会记录大量的日志，可能是表大小的几倍。
+  - 支持 allow read access,allow wrute access(默认)
+  - `db2 reorg table <schema>.<table> inplace allow write access`,在线reorg。
+- reorg 索引，`db2 reorg indexes all for table <table>`
+
+### rebind
+C程序中的sql预编译后会把执行计划被放到package中，but新添加索引等后执行计划不会更新。
+`db2 list packages for schema <schema>`,列出相应的package名
+rebind只能针对每个package，`db2rbind sample -l db2rbind.log all`,对所有package重新绑定。动态SQL是执行时才编译的，存储在 package cache中，统计信息更新后，可以通过`flush package cache dynamic`，更新package cache。
+
+### 表空间大小
+`db2 "call get_dbsize_info(?,?,?,<refresh-window>)"`refresh-window，为输入参数，进行数据大小和容量大小的刷新，单位为分钟，默认30，传入0会立即刷新。
+`db2 list tablespaces show detail`,`sysibmadm.tbsp_utilization`也可以查询表空间使用率。
+计算某个表占用空间有`db2pd -tcbstats`,`admin_get_tab_info`,`SYSIBMADM.ADMINTABINFO`。三种方法
+  - `db2pd -d <sample> -tcbstats`,DataSize表示表的页数。
+  - `describe table SYSIBMADM.ADMINTABINFO`
+
 
 ## 监控
+分为两类，实时监控和追踪监控。实时监控记录数据库某一时刻的快照信息shapshot db2pd db2top；实时监控提供跟详细的数据活动,事件监控器和 activity monitor,事件监听器可能会产生较大的数据量，对系统造成较大的影响，一般用于问题诊断。
 
 ## 性能监控
 
