@@ -364,11 +364,11 @@ rebind只能针对每个package，`db2rbind sample -l db2rbind.log all`,对所�
 `create event monitor`,创建监控器，监控器创建后不会自动启动，`SET event_moitor_name STATUS=1`来激活，如果把记过输出到文件系统，可以通过db2evmon解析数据`db2evmon -path > even_monitor_target`
 ## 优化器与性能调优
 `db2exfmt`生成文本访问计划
-`db2 -tvf ~/sqllib/misc/EXPLAIN.DDL`，创建执行计划需要的表。运行`db2 set current explain mode explain`,打开访执行计划选项，按照普通普通方式SQL，然后使用`db2 set current explain mode on`，关闭访问计划选项。`db2exfmt -d <sample> -g TIC -w -l -n % -s % -# 0 -o <file>`
+`db2 -tvf ~/sqllib/misc/EXPLAIN.DDL`，创建执行计划需要的表。运行`db2 set current explain mode   explain`,打开访执行计划选项，按照普通普通方式SQL，然后使用`db2 set current explain mode on`，关闭访问计划选项。`db2exfmt -d <sample> -g TIC -w -l -n % -s % -# 0 -o <file>`  
 `explain -d <sample> -f <select.sql> -g -t`,-q "",输入参数，-o 结果输出到文件。
 `db2advis -d <sample> -i <select.sql> -t 5`,优化建议，-n指定schema， -a uaername/passwd,指定用户密码。
 ### 索引
-`db2pd -d <sample> -tcbstats -index`,输出有个scans，一段时间内为0说明索引没有用到。也提供MON_GET_INDEX视图用来识别没有用到的索引。  
+`db2pd -d <sample> -tcbstats -index`,输出有个scans，一段时间内为0说明索引没有用到。也提供MON_GET_INDEX视图用来识别没有用到的索引。
 `SELECT SUBSTR(T.TABSCHEMA,1,18),SUBSTR(T.TABNAME,1,18),SUBSTR(S.INDSCHEMA,1,18),SUBSTR(S.INDNAME,1,18),T.PAGE_ALLOCATIONS,S.UNIQUERULE,S.INDEXTYPE FROM TABLE(MON_GET_INDEX('','',-1)) AS T,SYSCAT.INDEXES AS S WHERE T.TABSCHEMA= S.TABSCHEMA AND T.TABNAME=S.TABNAME AND T.IID=S.IID AND T.INDEX_SCANS=0`
 
 
