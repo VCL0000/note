@@ -18,7 +18,7 @@
 
 ## 升级相关
 
-- 备份实例设置`db2support [path] -d sample -cl 0`备份当前实例和数据库配置信息，-cl 0 会手机数据库系统目录，数据库和实例配置参数，db2注册变量的配置等。
+- 备份实例设置`db2support [path] -d sample -cl 0`备份当前实例和数据库配置信息，-cl 0 会收集数据库系统目录，数据库和实例配置参数，db2注册变量的配置等。
 - 备份每个数据库的package信息`db2 list packages for all show detail > packages.file`
 #### db2look
 - 可以将DDL语句，数据库统计状态，表空间参数导出，这个导出可以用于不同系统的数据库
@@ -197,7 +197,7 @@ CREATE|创建表和索引，然后导入数据，同时可以指定表空间。�
 - load 不会与db2数据引擎发生交互，不会触发触发器，不适用缓冲池，单独实现数据表的约束。 load 可以使文件或游标
 - load 分为load,build,delete,index copy
    - laod 不符合表定义的数据不会被装载到表中，但可以放到转储文件（dump file），并记录在message消息文件中，`modified by dumpfile`指定转储文件。
-   - build 基于装载阶段手机到的键创建索引
+   - build 基于装载阶段收集到的键创建索引
    - delete 将违反唯一约束的行删除，but不会检查 check 和参照完整性约束，可以创建异常（exception table）表来转储被删除的行，灭有指定异常表，重复数据将会被删除。
    - index copy，指定了`allow read access`，`use tablespace`,会将索引数据从系统临时表空间中复制到索引表空间中。
    - 异常表需要事先创建，并且在原表基础上增加两个列，被插入的时间戳，被党组异常原因的ClOB列。`create table [empexpTable] like [tableName]`，`alter table [empexpTaable] addcolumn ts timestamp add column msg clob (32k)`。
@@ -283,11 +283,11 @@ SAMPLE.0.DB2.NODE0000/CATN0000.20110415102710.001
 runstats(收集统计信息，为db2优化器提供最佳路径选择),reorgchk(重组前检查),reorg(重组，减少表和索引在五路存储上的碎片),rebind(对包，存储过程，或者静态程序进行重新绑定)
 
 ### runtatus
-- `runstatus on table <schema>.<tableName> on all columns with distribution and detailed indexes all`,手机统计信息，包括数据分布。
-- `runstatus on table <schema>.<tableName> for indexes all`,手机索引统计信息，如果表上没有统计信息，会同时对表做统计，但是不会手机数据分布信息。
+- `runstatus on table <schema>.<tableName> on all columns with distribution and detailed indexes all`,收集统计信息，包括数据分布。
+- `runstatus on table <schema>.<tableName> for indexes all`,收集索引统计信息，如果表上没有统计信息，会同时对表做统计，但是不会收集数据分布信息。
 - `runstatus on table <schema>.<tableName> tablesample bernoulli(10)`,(伯努利10%抽样统计)使用伯努利算法抽样统计，扫描每一行数据，但是只对一定比例抽样数据进行统计，适用于大表，大表的全表统计比较消耗资源。
 - `select char(tabname,20) as tabname,stats_time from syscat.tables where stats_time is null`,stats_time 字段为空值表明没有收集过统计信息，否则会显示统计信息的时间。
-- `reorgchk update statistics`对所有表手机统计信息，但是不会收集分布统计。
+- `reorgchk update statistics`对所有表收集统计信息，但是不会收集分布统计。
 - runstats:allow write access,runstatus时其它应用可以读取和修改，默认行为;allow read access，只能读取无法修改。
 ### reorg
 - 数据夸页，甚至有些页为空页，数据不连续。
@@ -319,13 +319,57 @@ rebind只能针对每个package，`db2rbind sample -l db2rbind.log all`,对所�
 
 ## 监控
 分为两类，实时监控和追踪监控。实时监控记录数据库某一时刻的快照信息shapshot db2pd db2top；实时监控提供跟详细的数据活动,事件监控器和 activity monitor,事件监听器可能会产生较大的数据量，对系统造成较大的影响，一般用于问题诊断。
+### snapshot
+监控元素分为以下几类
+- 计数器(counter):用来村粗累计值，比如实例启动依赖数据库发生的总排序次数(total sorts)，死锁个数(deadlocks)，读取行数(rows read)等
+- 计量/瞬时值(gauge):记录某个监控元素的当前值，比如当前发生排序的次数(active sorts)，当前的锁个数(locks)。
+- 高水位值(high water mark):记录一个监控元素在打开监控开关以阿里所达到的最大值或最小值，通过高水位值可以获取峰值时的数据。
+实际分析中需要进行多次抓取快照，分析一段时间内的数据库活动。
+`db2 get snapshot for database on <sample>`
+`db2 get snapshot for applications on <sample>`
+`db2 get snapshot for tables on <sample>`
+`db2 get snapshot for tablespaces on <sample>`
+`db2 get snapshot for locks on <sample>`
+`db2 get snapshot for bufferpools on <sample>`
+`db2 get snapshot for dynamic on <sample>`
 
-## 性能监控
+### db2pd
+速度快，性能好。
+分区数据库中存在多个物理节点时，必须运行在逻辑分区所在的物理节点。如果分区在远程物理节点，可以使用-global参数运行，`db2pd -db sample -dbp 3 global`
 
-## 优化器
+- `db2pad -db sample -appl`,应用程序。
+- `db2pd -edus`,输出EDU列表，cpu相关。
+- `db2pd -osinfo`,操作系统信息。
+- `db2pd -db <sample> -bufferpool`,缓冲池信息。
+- `db2pd -db <sample> -logs`,日志信息。
+- `db2pd -db <sample> -tablespaces`,表空间信息。
+- `db2pd -db <sample> -locks`,锁信息。
+- `db2pd -db <sample> -agents`,代理信息。
+- `db2pd -db <sample> -static`,静态语句。
+- `db2pd -db <sample> -dynamic`,动态SQL信息。
+- `db2pd -db <sample> -tcbstats`,表状态信息。
+- `db2pd -db <sample> -tcbstats index`,索引信息。
 
+### db2top
+原理是在后台每隔一段时间收集一次快照，探后通过计算其与最近一次快照之间的数值差别与经过的时间，计算出一些列统计数据。
+`db2top -d <sample>`，进入交互界面，h帮助菜单。
+`/`进行搜索，!xx不包含xx的。`z`按照列进行排序，列序号从0开始。`L`输入第一列的hash值，查看SQL。`x`得到当前语句的执行计划（需要创建sqllib/misc/EXPLAN.DDL中的表）,`l`系统中应用程序列表，`b`缓冲池，主要监控命中率和逻辑物理读取的数量，`U`锁，`T`表。
+历史信息收集
 
+- `db2top -d <sample> -f <out.file> -C -m 480 -i 15`,m指定收集模式运行多少分钟，i指定隔多少秒收集一次快照。
+- `db2top -d <sample> -f <out.file> -b 1 -A`,重新播放收集到的数据，`db2top -d <sample> -f <out.file> /02:00:00`直接查看给定时间戳时的信息。
 
+### 事件监控器
+当谋个事件发生时记录信息的机制，比如发生死锁时，会将死锁先关的信息写到表或文件中，便于事后分析。事件监控器产生的数据量比较大，会对系统造成非常大的影响。
+`create event monitor`,创建监控器，监控器创建后不会自动启动，`SET event_moitor_name STATUS=1`来激活，如果把记过输出到文件系统，可以通过db2evmon解析数据`db2evmon -path > even_monitor_target`
+## 优化器与性能调优
+`db2exfmt`生成文本访问计划
+`db2 -tvf ~/sqllib/misc/EXPLAIN.DDL`，创建执行计划需要的表。运行`db2 set current explain mode explain`,打开访执行计划选项，按照普通普通方式SQL，然后使用`db2 set current explain mode on`，关闭访问计划选项。`db2exfmt -d <sample> -g TIC -w -l -n % -s % -# 0 -o <file>`
+
+`explain -d <sample> -f <select.sql> -g -t`,-q "",输入参数，-o 结果输出到文件。
+`db2advis -d <sample> -i <select.sql> -t 5`,优化建议，-n指定schema， -a uaername/passwd,指定用户密码。
+索引
+`db2pd -d <sample> -tcbstats -index`,输出有个scans，一段时间内为0说明索引没有用到。
 
 
 
