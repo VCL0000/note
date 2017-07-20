@@ -1,7 +1,7 @@
 
 
 
-数据库层的命令
+## 数据库的命令
 
 命令/SQL语句|描述
 ---|---
@@ -15,6 +15,14 @@
 `db2move [dbName] export -u [userName] -p [password]`|导出数据
 `db2 grant control on table [schema.table] to user [userName]`|授权
 
+db2 -tvf qury.sql -z out.log|执行文件sql
+
+选项|描述
+-|-
+t|使用默认的语句终结符`;`
+v|冗长输出
+f|指定文件
+z|屏幕输出记录文件
 
 ## 升级相关
 
@@ -364,7 +372,7 @@ rebind只能针对每个package，`db2rbind sample -l db2rbind.log all`,对所�
 `create event monitor`,创建监控器，监控器创建后不会自动启动，`SET event_moitor_name STATUS=1`来激活，如果把记过输出到文件系统，可以通过db2evmon解析数据`db2evmon -path > even_monitor_target`
 ## 优化器与性能调优
 `db2exfmt`生成文本访问计划
-`db2 -tvf ~/sqllib/misc/EXPLAIN.DDL`，创建执行计划需要的表。运行`db2 set current explain mode   explain`,打开访执行计划选项，按照普通普通方式SQL，然后使用`db2 set current explain mode on`，关闭访问计划选项。`db2exfmt -d <sample> -g TIC -w -l -n % -s % -# 0 -o <file>`  
+`db2 -tvf ~/sqllib/misc/EXPLAIN.DDL`，创建执行计划需要的表。运行`db2 set current explain mode   explain`,打开访执行计划选项，按照普通普通方式SQL，然后使用`db2 set current explain mode on`，关闭访问计划选项。`db2exfmt -d <sample> -g TIC -w -l -n % -s % -# 0 -o <file>`
 `explain -d <sample> -f <select.sql> -g -t`,-q "",输入参数，-o 结果输出到文件。
 `db2advis -d <sample> -i <select.sql> -t 5`,优化建议，-n指定schema， -a uaername/passwd,指定用户密码。
 ### 索引
