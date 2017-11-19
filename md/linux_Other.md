@@ -91,6 +91,10 @@ ONBOOT="no" 改为yes
 
 
 ## About Package
+
+### other
+npm install gitbook-pdf -g
+
 ### ORACLE
 
 `export NLS_LANG=AMERICAN_AMERICA.UTF8`
@@ -99,7 +103,7 @@ ONBOOT="no" 改为yes
 `sqlplus / as sysdba`
 `startup/shutdown`
 `create user c##vcl0000 identified by 106514;`
-`grant dba to c##vcl0000;`
+`grant dba to c##vcl0000;`CONNECT
 `--ALTER USER c##test identified by test;`
 `--DROP USER c##test`
 

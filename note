@@ -30,7 +30,7 @@ wget -qO- https://get.docker.com/ | sh
 sudo usermod -aG docker [username]
 
 
-curl -fLo 
+curl -fLo
 
 
 sudo service docker start
@@ -97,6 +97,10 @@ describe data partitions FOR TABLE TEST.PART_TABE show detail
 hdparm
 parted -l
 
+intersect
+except
+exists
+case
 
 
 
@@ -105,32 +109,22 @@ parted -l
 
 
 
+springsource
+
+npm install gitbook-pdf -g
+gitbook-cli
+phantomjs
+
+
+
+
+Fork/Join
+Future
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+merge into
+OmniDB

@@ -27,8 +27,8 @@ DelayQueue
 PriorityBlockingQueue
 ScheduledExecutor
 Semaphore
-
-
+Exchanger
+SynchronousQueue
 
 
 java 虚拟机
