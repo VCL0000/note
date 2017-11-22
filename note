@@ -128,3 +128,29 @@ Future
 
 merge into
 OmniDB
+
+
+
+
+
+sudo prime-select nvidia
+
+lspci
+lspci -v -s 01:00.0
+nvidia-settings
+
+
+
+
+
+
+
+ls (hd0,msdos1)/
+set root=(hd0,msdos1)
+set prefix=(hd0,msdos1)/grub
+insmod /grub/i386-pc/normal.mod
+normal
+
+sudo update-grub
+sudo grub-install /dev/sda 
+
