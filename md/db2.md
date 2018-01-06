@@ -1,7 +1,7 @@
-
-
-
 ## 数据库的命令
+
+`db2licm -a file`，许可证授权
+`db2sampl`，创建sample库
 
 命令/SQL语句|描述
 ---|---
@@ -60,14 +60,16 @@ codeset 编码集，territory 区域。数据库一旦创建编码就无法改�
 ### 表空间
 #### 创建表空间
 - `db2 "create bufferpoll bp32k size 10000 pagesize 32k"`
-- `db2 "create large tablespace [tbs_data] pagesize 32k managen by database using (file '/path/file 100M',file '/path/file2 100M') extentsize 32 prefetchsize automatic bufferpool bp32k no file system caching"`managed by datbase 表示空间的分配和管理由db2负责，即DMS；using 指定表空间的容器，DMS支持的容器类型是文件和裸设备；DMS类型的表空间在创建时即分配表空间，创建后可以对表空间容器就行增删改。数据建议用DMS管理
+- `db2 "create large tablespace [tbs_data] pagesize 32k managen by database using (file '/path/file 100M',file '/path/file2 100M') extentsize 32 prefetchsize automatic bufferpool bp32k no file system caching"`managed by database 表示空间的分配和管理由db2负责，即DMS；using 指定表空间的容器，DMS支持的容器类型是文件和裸设备；DMS类型的表空间在创建时即分配表空间，创建后可以对表空间容器就行增删改。数据建议用DMS管理
 - `db2 "create temporary tablespace [tbs_temp] pagesize 32k managen by system using ('path/file') bufferpool bp32k"`系统临时表空间， managed by system 空间的分配和管理由操作系统负责，即SMS；SMS支持的容器类型只能是目录，并且无需指定大小，只要路径所属的文件系统有空间；SMS性能逼DMS差一些；临时表空间，建议用SMS管理。
 - `db2 "create user temporary tablespace [tbs_user_temp] pagesize 32k managed by system using ('path/file') bufferpool bp32k"`，用户临时表空间。
 - `db2 "create tablespace [tbs_index] pagesize 32k bufferpool bp32k"`，自动存储管理表空间（automatic storage）无需指定容器类型和大小，实际上底层任然是DMS SMS，只是容器不需要指定；自动存储表空间的数据在建库时指定的 ON目录；只有建库时启用了 automatic storage yes，表空间才支持自动存储管理。
 - `db2 "create tablespace [tbs_data2] initialsize 100M increasesize 100m maxsize 1000G"`
 
+`db2 create tablespace  int1_dts` 9.7之后默认的表空间类型为自动管理的DMS表空间。
+list tablespace containers show detail
 #### 更改表空间
-- 若表空间容器对应的存储中还有未分配空间，可以通过 alter tablespace的extend 或resize选项扩展已有表空间容器的大小,`db2 "alter tavlespace [data_ts2] extend (file 'path/file' 10M,file 'path/file1' 50G)"`,在每个容器上扩展50GB。
+- 若表空间容器对应的存储中还有未分配空间，可以通过 alter tablespace的extend 或resize选项扩展已有表空间容器的大小,`db2 "alter tablespace [data_ts2] extend (file 'path/file' 10M,file 'path/file1' 50G)"`,在每个容器上扩展50GB。
 - 表空间容器对应的存储中没有剩余空间时，可以通过alter tablespace 的 add 选项增加新的容器。add增加的容器会在容器间进行数据 rebalance(数据重新平衡)数据大的话rebalance时间回比较长。`db2 "alter tablespace [data_ts2] add (file 'path/file' 50G)"`
 - alter tablespace begin new stripe set,已有容器使用完后新增家容器。不会rebalance，但会造成数据偏移，`db2 "alter tablespace [data_ts2] begin new stripe set (file 'path/file' 10M)"`
 - 自动存储管理的表空间，无法在表空间级进行容器更改，只能在数据库级别，自动存储路径实在建库是指定的。可以通过 add storage on 选项为数据库添加新的存储路径。`db2 alter database [dbName] add storage on [dbpath]`
@@ -229,7 +231,15 @@ CREATE|创建表和索引，然后导入数据，同时可以指定表空间。�
   - `SET INTEGRITY FOR employee_copy ALL IMMEDIATE UNCHECKED`
   - `set integrity for  [schema.table] immediate checkedforexception in [tableName] use [expTanleName]`
   - `SELECT TABNAME,STATUS,ACCESS_MODE,SUBSTR(CONST_CHECKED,1,1) AS FK_CHECKED,SUBSTR(CONST_CHECKED,2,1) AS CC_CHECKED FROM SYSCAT.TABLES WHERE STATUS='C';`,检查表的状态，是否允许访问及表的主外键约束，约束检查等。
-- `load from xx.del of del modified by coldel0x0f codepage=1208 meessages xx.msg replace into [tableName] nonrecoverable`
+- `load from xx.del of del modified by coldel0x0f codepage=1208 messages xx.msg replace into [tableName] nonrecoverable`
+
+`CREATE TABLE MY.T_INDEX_2_EXP LIKE MY.T_INDEX_2 IN INT1_DTS;
+ALTER TABLE MY.T_INDEX_2_EXP ADD COLUMN TS TIMESTAMP ADD COLUMN MSG CLOB(32K);`异常表
+`db2 "load from  /dev/null of del terminate into MY.T_INDEX_2"`load 中断恢复
+`db2 "load from /home/db2inst1/stage/data/T_INDEX_2_01.del of del modified BY dumpfile=/home/db2inst1/stage/log/bad/T_INDEX_2.bad coldel^  codepage=1208 METHOD P(1,2,3,4,5,10,11)  messages /home/db2inst1/stage/log/msg/T_INDEX2.msg INSERT INTO MY.T_INDEX_2 (C1,C2,C3,C4,C5,C10,C11)  for exception MY.T_INDEX_2_EXP nonrecoverable ALLOW READ access"` laod 数据，dumpfile不符合定义的转储文件；coldelx字段分隔符；CHARDELx字符串分隔符；codepage字符编码；METHOD源数据的列号；messages msg信息；INSERT装入方式；for exception异常表；nonrecoverable 不可前滚恢复；ALLOW READ access允许查寻；
+
+
+
 
 #### db2move
 只兼容IXF格式的文件，文件名由db2move自动生成
@@ -292,9 +302,9 @@ SAMPLE.0.DB2.NODE0000/CATN0000.20110415102710.001
 runstats(收集统计信息，为db2优化器提供最佳路径选择),reorgchk(重组前检查),reorg(重组，减少表和索引在五路存储上的碎片),rebind(对包，存储过程，或者静态程序进行重新绑定)
 
 ### runtatus
-- `runstatus on table <schema>.<tableName> on all columns with distribution and detailed indexes all`,收集统计信息，包括数据分布。
-- `runstatus on table <schema>.<tableName> for indexes all`,收集索引统计信息，如果表上没有统计信息，会同时对表做统计，但是不会收集数据分布信息。
-- `runstatus on table <schema>.<tableName> tablesample bernoulli(10)`,(伯努利10%抽样统计)使用伯努利算法抽样统计，扫描每一行数据，但是只对一定比例抽样数据进行统计，适用于大表，大表的全表统计比较消耗资源。
+- `runstats on table <schema>.<tableName> on all columns with distribution and detailed indexes all`,收集统计信息，包括数据分布。
+- `runstats on table <schema>.<tableName> for indexes all`,收集索引统计信息，如果表上没有统计信息，会同时对表做统计，但是不会收集数据分布信息。
+- `runstats on table <schema>.<tableName> tablesample bernoulli(10)`,(伯努利10%抽样统计)使用伯努利算法抽样统计，扫描每一行数据，但是只对一定比例抽样数据进行统计，适用于大表，大表的全表统计比较消耗资源。
 - `select char(tabname,20) as tabname,stats_time from syscat.tables where stats_time is null`,stats_time 字段为空值表明没有收集过统计信息，否则会显示统计信息的时间。
 - `reorgchk update statistics`对所有表收集统计信息，但是不会收集分布统计。
 - runstats:allow write access,runstatus时其它应用可以读取和修改，默认行为;allow read access，只能读取无法修改。
@@ -374,12 +384,13 @@ rebind只能针对每个package，`db2rbind sample -l db2rbind.log all`,对所�
 ## 优化器与性能调优
 `db2exfmt`生成文本访问计划
 `db2 -tvf ~/sqllib/misc/EXPLAIN.DDL`，创建执行计划需要的表。运行`db2 set current explain mode   explain`,打开访执行计划选项，按照普通普通方式SQL，然后使用`db2 set current explain mode on`，关闭访问计划选项。`db2exfmt -d <sample> -g TIC -w -l -n % -s % -# 0 -o <file>`
-`explain -d <sample> -f <select.sql> -g -t`,-q "",输入参数，-o 结果输出到文件。
+`db2expln -d <sample> -f <select.sql> -g -t`,-z ";" 指定分隔符，-q "",输入参数，-o 结果输出到文件。
 `db2advis -d <sample> -i <select.sql> -t 5`,优化建议，-n指定schema， -a uaername/passwd,指定用户密码。
 ### 索引
 `db2pd -d <sample> -tcbstats -index`,输出有个scans，一段时间内为0说明索引没有用到。也提供MON_GET_INDEX视图用来识别没有用到的索引。
 `SELECT SUBSTR(T.TABSCHEMA,1,18),SUBSTR(T.TABNAME,1,18),SUBSTR(S.INDSCHEMA,1,18),SUBSTR(S.INDNAME,1,18),T.PAGE_ALLOCATIONS,S.UNIQUERULE,S.INDEXTYPE FROM TABLE(MON_GET_INDEX('','',-1)) AS T,SYSCAT.INDEXES AS S WHERE T.TABSCHEMA= S.TABSCHEMA AND T.TABNAME=S.TABNAME AND T.IID=S.IID AND T.INDEX_SCANS=0`
 
+###
 
 
 
