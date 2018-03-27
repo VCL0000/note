@@ -109,6 +109,8 @@ ps -ef | sort -k2,2 -n
 sort -t: -k3,3 -n /etc/group
 `
 
+
+????? uniq 按某列排序
 ### uniq
 重复行只打印一次//group by 加count
 uniq 命令在思想上和 sort -u 类似,但它有一些 sort 不能模拟的选项
@@ -622,6 +624,12 @@ linux 磁盘块设备文件名 /dev/sda
 逻辑卷管理实质上是增强和抽象版的磁盘分区。多个设备组成卷组(volume group)，一个卷组内的数据块分配给逻辑劵(logical volume),逻辑卷用设备块文件表示，其功能就像磁盘分区
 linux LVM2 相关命令
 
+`sudo pvs`物理卷
+`sudo vgs`卷组
+`sudo lvs`逻辑卷
+`lsblk`块设备
+`blkid`设备UUID
+
 对象|操作|含义
 -|-
 物理卷|pvcreate|创建
@@ -647,10 +655,10 @@ LVM的命令以字母开头，字母表示命令在哪个抽象层面执行：pv
  - 在卷组上创建逻辑劵
 - 例子
  - 使用之前的RAID阵列，条带和冗余性直接使用RAID的，虽然LVM2也有这些功能。
- - `sudo pvcreate /dev/md0`创建卷组
- - `sudo vgcreate [DEMO] /dev/md0`创建卷组
+ - `sudo pvcreate /dev/md0`创建物理卷组`sudo pvcreate /dev/sda2`
+ - `sudo vgcreate [DEMO] /dev/md0`创建卷组`sudo vgcreate vg1 /dev/sda2`
  - `sudo vgdisplay DEMO` 查看
- - `sudo lvcreate -L 100G -n [web1] DEMO`在DEMO卷组上创建web1逻辑劵,可以通过`/dev/DEMO/web1`访问逻辑劵。LVM2可以在卷组上建条带，镜像。
+ - `sudo lvcreate -L 100G -n [web1] DEMO`在DEMO卷组上创建web1逻辑劵,可以通过`/dev/DEMO/web1`访问逻辑劵。LVM2可以在卷组上建条带，镜像。`sudo lvcreate  -L 30G -n lv1 vg1`
  - `sudo mkfs /dev/DEMO/web1`,`sudo mkdir /mnt/web1`,`sudo mount /dev/DEMO/web1 /mnt/web1`格式化，挂载。
 - 逻辑卷快照 给`/dev/DEMO/web1`创建一个`/dev/DEMO/web1`
  - `sudo lvcreate -L 100G -s -n web1-snap DEMO/web1`,快照的源逻辑卷必须按“卷组/劵”的方式指定，理论上应该是先卸载文件系统一致性，实际上可能会丢失最近的备份数据块但ext4能保护文件系统不会受损。`lvdisplay`可以查看快照的状态，如果输出某个快照没有在活动的状态，意味着它已经用完了空间，应该被删除。
@@ -662,6 +670,16 @@ LVM的命令以字母开头，字母表示命令在哪个抽象层面执行：pv
  - `sudo e2fsck -f /dev/DEMO/web1`,`resize2fs`需要在改变文件系统大小之前检查文件系统的一致性。
  - `sudo resize2fs /dev/DEMO/web1`改变文件系统的大小,`resize2fs`支持ext类文件系统，能够判断文件系统在逻辑劵里的大小，因此不需要明确指定文件系统新的大小。只有在缩小的时候才需要指定。
  - `sudo mount /dev/DEMO/web1 /mnt/web1`挂载。
+#### 删除
+卸载卷组上的逻辑卷LV
+`sudo lvremove  /dev/vg1/vg1-lv1` 删除逻辑卷LV
+`sudo lvremove  /dev/vg1/vg1-lv2`
+`sudo vgremove  vg1`删除卷组VG
+`sudo pvremove  /dev/sda2`删除物理卷PV
+
+### 裸设备
+`sudo modprobe raw`
+`sudo raw /dev/raw/raw1 /dev/vg1/lv1`
 
 ### 文件系统
 - ext4
@@ -774,13 +792,14 @@ xdev 将范围局限在当前的文件系统中
 
 #### 命令实例
 - **添加用户**
-`adduser username`
+`adduser username` ubuntu的perl脚本
 `passwd username`
 `groupadd groupname`
+`sudo groupdel was` 删除组
 - **新建用户同时增加工作组**
 `useradd -g groupname username`
 - **用户追加到组 没有a用户将从原来的组中移除**
-`usermod -a -g group user`
+`usermod -a -G group user`
 - **将用户将从组中删除**
 `gpasswd -d user group`
 - **查看当前用户所在的组**
@@ -853,6 +872,21 @@ apt源镜像
 -P|--purge
 -l|list
 -S file|查找拥有该文件的包
+#### 打包
+./内按照安装的目录结构组织
+`DEBIAN/control`创建该文件。
+`
+Package: wkhtmltopdf
+Version: 0.12.4
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: libc6 (>= 2.14), libgcc1 (>= 1:3.0), libqt5core5a (>= 5.6.0~beta), libqt5gui5 (>= 5.0.2) | libqt5gui5-gles (>= 5.0.2), libqt5network5 (>= 5.0.2), libqt5printsupport5 (>= 5.0.2), libqt5svg5 (>= 5.6.0~beta), libqt5webkit5 (>= 5.6.0~rc), libqt5widgets5 (>= 5.0.2), libstdc++6 (>= 5)
+Installed-Size: 125300
+Maintainer: vcl0000@163.com
+Description: soft package
+`
+`dpkg -b . ../wkhtmltopdf-0.12.4.deb`
 
 ### rpm
 ```
@@ -1128,6 +1162,7 @@ man手册页给出了vers标志，但是用这个标志则会出错。要使用N
 
 `nfsstat`显示NFS系统维护的各种统计信息。`nfsstat -s`显示NFS服务器进程的统计信息，`nfsstat -c`显示与客户端操作先关的信息，默认显示所有协议版本的统计信息
 
+`sudo mount -t cifs -o username="vcl0000",password="*****" -l //192.168.3.1/honorrouter/ /home/vcl0000/n` 挂载smba
 **自动挂载**
 - 挂载守护进程在文件系统被访问到时就挂载文件系统，而不再需要文件系统时就卸载它们，这样可以来解决一些问题。自动挂载程序把活动挂载点的数目限定在一定范围内。大多数自动挂载程序还可以提供一些列“复制的”（等同的）文件系统。现在使用的是一种驻留内的的文件系统驱动程序autofs。
 - automount可以理解三种不同的配置文件（称为映射）：直接，简介，主控映射。直接映射和简介映射提供了有关要自动挂载的文件系统信息。主控映射列出了automount应该注意的直接和简介映射。一次只有一个主控映射出于活动状态，默认的主控映射保存在/etc/auto.master
@@ -1151,6 +1186,10 @@ automount知道该目录下子目录的内容被访问过之后才会显示它�
 ```
 第一列是间接映射的本地目录名，或者特殊记号/-表示直接映射，第二列给出保存映射的文件。每种类型可有几个映射文件。如果一行的末尾制定了挂载选项，那么这些选项将成为该映射文件中所有挂载的默认选项。Linux一定要给NFSv4服务器指定`-fstype=nfs`这个标志
 
+### sshfs
+`sshfs vcl0000@vcl0000:/home/vcl0000 /home/jjh/vcl0000`挂载
+`fusermount -u /home/jjh/vcl0000`卸载
+
 ## 共享系统文件
 CIFS实质上是SMB的一个版本
 ### Samba
@@ -1166,6 +1205,16 @@ CIFS可以被mount挂载
 `sudo mount -t cifs -o username=joe /path /mountPoint`
 配置中的这个需要解开注释`browseable = yes`
 `sudo /etc/init.d/samba restart`重启服务。
+#### smbpasswd
+`sudo smbpasswd jjh`
+
+command|option
+--|--
+smbpasswd|-a 增加用户（要增加的用户必须以是系统用户）
+smbpasswd|-d 冻结用户，就是这个用户不能在登录了
+smbpasswd|-e 恢复用户，解冻用户，让冻结的用户可以在使用
+smbpasswd|-n 把用户的密码设置成空.要在global中写入 null passwords -true
+smbpasswd| -x  删除用户
 
 
 ## X Windows
@@ -1178,6 +1227,23 @@ remmina-plugin-vnc
 
 
 
+##
+ Exapmle
+- 重名
+  - `ls *.jpg |awk -F "xx" '{print "mv "$0" "$1$2""}'|bash`剔除文件名中的xx
+  - `for file in `ls *.jpg`;do mv $file `echo $file|sed 's/xx//g'`;done;`剔除文件名中的xx
+  - `rename "xx" "" *.jpg`剔除文件名中的xx
+
+
+## utils
+
+### conv
+
+#### html2dash
+`html2dash.py -n quartz -i ./quartz/quartzEJS.png ./quartz -d /home/jjh/.local/share/Zeal/Zeal/docsets`
+
+### mail
+`sudo vi /etc/postfix/main.cf`
 
 
 

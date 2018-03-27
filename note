@@ -7,7 +7,7 @@ citrix
 http://man.linuxde.net/
 https://explainshell.com
 
-
+wget -c URL or curl -C - -L -O URL  aria2c
 
 
 
@@ -152,5 +152,4 @@ insmod /grub/i386-pc/normal.mod
 normal
 
 sudo update-grub
-sudo grub-install /dev/sda 
-
+sudo grub-install /dev/sda

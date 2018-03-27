@@ -133,7 +133,15 @@ passwd mqm
 - `sudo update-alternatives --config javac`
 将会提示：要维持当前值[]请安回车键或者输入选择的编号输入自己设置的优先级的编号(300)，按回车就可以了
 - `sudo update-alternatives --display java`
+-
+git clone  https://github.com/powerline/fonts
+./install.sh
+sudo fc-cache -fv
 
+### 安装字体
+`/usr/share/fonts/` 字体的目录，目前不清楚是怎么配置到这里的
+`$HOME/.local/share/fonts`，powerline 是配置在这里的
+`fc-cache -fv $HOME/.local/share/fonts`
 ### vim
 - **插件管理器**
   - mkdir -p ~/.vim/bundle
@@ -182,7 +190,7 @@ else
   set background=dark
 endif
 colorscheme solarized
-//这个主题需要clone到vundle目录下
+//这个主题需要clone到vundle目录下line
 ```
 
 ### zsh
@@ -231,6 +239,11 @@ sudo smbpasswd -a vcl0000//添加用户
 - make
 - sudo make install
 
+### nvidaia
+`sudo vi /etc/modprobe.d/blacklist-modem.conf `
+add line
+`blacklist nouveau option nouveau modeset=0`
+`sudo update-initramfs -u` 不知道不敲可不可以
 
 
 ### db2

@@ -1,3 +1,5 @@
+[TOC]
+
 ## 数据库的命令
 
 `db2licm -a file`，许可证授权
@@ -24,19 +26,21 @@ v|冗长输出
 f|指定文件
 z|屏幕输出记录文件
 
-
 ## 升级相关
 
 - 备份实例设置`db2support [path] -d sample -cl 0`备份当前实例和数据库配置信息，-cl 0 会收集数据库系统目录，数据库和实例配置参数，db2注册变量的配置等。
 - 备份每个数据库的package信息`db2 list packages for all show detail > packages.file`
-#### db2look
+
+### db2look
+
 - 可以将DDL语句，数据库统计状态，表空间参数导出，这个导出可以用于不同系统的数据库
   - `db2look -d sample -l -e -o sample.ddl`
 
 停止所有连接`db2 force applications all`
 停止所有连接，停掉实例`db2stop force`
 
-#### 升级
+### 升级
+
 安装新版本->(检查是否可以升级)升级实例->升级库
 `db2ckupgrade`检查是否可以成功升级。
 在安装过的新版的../instance目录下执行
@@ -46,19 +50,21 @@ z|屏幕输出记录文件
 `db2rbind dbname -l [file] all`重新绑定package
 
 ## 实例管理
-#### db2 存储模型
+
+### db2 存储模型
+
 表空间->容器->extent->page
 page 4k 8k 16k 32k
-
 `db2 get db cfg for [dbName]`获取数据配置
-
 `db2 "create database [dbName] automatic storage yes on / dbauto dbpath on [databasePath] using codeset utf-8 territory cn collate using system"`
-
 codeset 编码集，territory 区域。数据库一旦创建编码就无法改变。不指定9.5之后默认为utf-8。
 
 创建数据库时，db2会创建三个默认的表空间，系统表空间（system tablespace）用来春初系统表，也就是数据字典的信息，一个数据库只能有一个系统表空间;临时表空间(temporary tablespace)用来保存语句执行时产生的中间临时数据，如join 排序等操作都会产生一些临时数据;用户表空间(user tablespace)用来存储表，索引，大对象等数据。
+
 ### 表空间
+
 #### 创建表空间
+
 - `db2 "create bufferpoll bp32k size 10000 pagesize 32k"`
 - `db2 "create large tablespace [tbs_data] pagesize 32k managen by database using (file '/path/file 100M',file '/path/file2 100M') extentsize 32 prefetchsize automatic bufferpool bp32k no file system caching"`managed by database 表示空间的分配和管理由db2负责，即DMS；using 指定表空间的容器，DMS支持的容器类型是文件和裸设备；DMS类型的表空间在创建时即分配表空间，创建后可以对表空间容器就行增删改。数据建议用DMS管理
 - `db2 "create temporary tablespace [tbs_temp] pagesize 32k managen by system using ('path/file') bufferpool bp32k"`系统临时表空间， managed by system 空间的分配和管理由操作系统负责，即SMS；SMS支持的容器类型只能是目录，并且无需指定大小，只要路径所属的文件系统有空间；SMS性能逼DMS差一些；临时表空间，建议用SMS管理。
@@ -68,7 +74,9 @@ codeset 编码集，territory 区域。数据库一旦创建编码就无法改�
 
 `db2 create tablespace  int1_dts` 9.7之后默认的表空间类型为自动管理的DMS表空间。
 list tablespace containers show detail
+
 #### 更改表空间
+
 - 若表空间容器对应的存储中还有未分配空间，可以通过 alter tablespace的extend 或resize选项扩展已有表空间容器的大小,`db2 "alter tablespace [data_ts2] extend (file 'path/file' 10M,file 'path/file1' 50G)"`,在每个容器上扩展50GB。
 - 表空间容器对应的存储中没有剩余空间时，可以通过alter tablespace 的 add 选项增加新的容器。add增加的容器会在容器间进行数据 rebalance(数据重新平衡)数据大的话rebalance时间回比较长。`db2 "alter tablespace [data_ts2] add (file 'path/file' 50G)"`
 - alter tablespace begin new stripe set,已有容器使用完后新增家容器。不会rebalance，但会造成数据偏移，`db2 "alter tablespace [data_ts2] begin new stripe set (file 'path/file' 10M)"`
@@ -83,14 +91,16 @@ list tablespace containers show detail
 - drop pending,重启数据库时，如果一个或多个容器有问题，表空间不再可用。
 
 #### 表空间信息
-- 获取表空间信息，`db2 get snapshot for tablespaces on sample `
+
+- 获取表空间信息，`db2 get snapshot for tablespaces on sample`
 - 表空间的配置信息，使用情况和容器信息`db2pd -d sample tablespaces`
-- 查看表空间，`db2 list tablespaces show detail `/`db2 list tablespace containers for [tablespaceId] show detail`
+- 查看表空间，`db2 list tablespaces show detail`/`db2 list tablespace containers for [tablespaceId] show detail`
 - 更加详细的表空间信息，`db2 get snapshot for tablespaces on [dbName]`
 
 SMS表空间无法通过命令监视，只受文件系统限制。
 
 #### 表空间高水位
+
 - HWM,DMS表空间的属性，代表表空间当前分配的最高页数，这个值Kenneth大于已经使用的页数（userd pages）
 - alter tablespace 的 reduce resize drop 选项对表空间进行更改时，如果更改后的页数小于HWM的值，操作将会失败。
 - db2dart 的 DHWM选项显示HWM相关信息，`db2dart sample /DHWM`
@@ -98,23 +108,27 @@ SMS表空间无法通过命令监视，只受文件系统限制。
   - RHWM,删除占据HWM的空SMP块。SMP块用来标识该块映射的一组extents是否可用，如果一个空SMP占据了HWM，可以来降低`db2dart sample /RHWM`。
   - 9.7之后创建的DMS表空间可以通过alter tablespaces 降低HWM，`db2 alter tablespace [data_ts1] reduce MAX`
 
-
-
 ## 数据对象
+
 ### 模式
+
 `create schema [schemaName]`,显示创建，隐式创建是在建表的时候指定。
 `syscat.schemata`,查看数据数据库创建了哪些模式
 相关系统模式
+
 - `SYSIBM`，模式下的对象存储的是系统数据字典表
 - `SYSCAT`，模式下的对象是系统视图，可通过查看这些视图查看各种数据对象信息。
 - `SYSIBMADM`，系统管理视图模式
 - `SYSSTAT`，统计视图模式，有9个视图，用来为db2优化器提供统计信息
+
 ### 表
+
 `db2 describe table [schema.table]`,查看表字段及数据类型
 `db2 list tables for schema [schemaName]`,查看某个模式下的表名视图和alias别名。
 `db2 list tables for all`,查看所有模式下的表名视图和alias别名
 `db2 list tables`，查看以当前连接用户作为模式名下的表名等。
 通过`SYSCAT.TABLES`系统视图查看表定义，所属表空间等。`SELECT SUBSTR(TABSCHEMA,1,32) AS TABSCHEMA,SUBSTR(TABNAME,1,32) AS TABNAME,TBSPACEID FROM SYSCAT.TABLES WHERE TABSCHEMA='[TEST]'`
+
 ### 表约束
 
 - 非空约束not null,唯一性约束unique,主键约束primary key,外键约束foreign key,检查约束check（检查约束如同枚举）。
@@ -128,13 +142,20 @@ SMS表空间无法通过命令监视，只受文件系统限制。
 - 删除约束，`alter table [tableName] drop constraint [constName]`
 
 ### 表状态
+
 执行一些操作时，表可能处于某种状态，如load可能导致表处于 laod pending，not restartable等，对表结构进行更改时，也可能导致表状态异常。alter table可能会导致表处于reorg-pending状态。
+
 ### 表压缩
+
 表压缩可以减少存储空间，也节省I/O和内存占用，但是压缩和解压缩需要一定的CPU资源。
 `alter table [tableName] compress yes`，`db2 reorg table [tableName]`,查看表使用空间`SELECT SUBSTR(TABNAME,1,32) AS TABNAME,DATA_OBJECT_L_SIZE,DATA_OBJECT_P_SIZE,DICTIONARY_SIZE FROM SYSIBMADM.ADMINTABINFO WHERE TABNAME='USER';`
+
 ### 表分区
+
 ing...
+
 ### 索引
+
 通过索引获取RID，找到对应的页面和偏移位置，从而找到数据，无需扫全表。
 `creata index [idxName] on [table] ([column])`,普通索引
 `creata unique index [idxName] on [table] ([column])`,唯一索引
@@ -145,18 +166,21 @@ ing...
 查看索引的相关信息,`db2 describe indexes for table [schema] show detail`,也可以通过`syscat.indexes`查看索引信息。
 
 ### 视图
+
 `creata view [viewName] ([column]) as [子查询]`。
 `syscat.views`视图相关信息，包括视图定义。
 
 ### identity
+
 `generated always as identity`,系统自增,不允许插入
 `generated by default as identity`,用户指定，允许插入
 
 ### 大对象
+
 循环日志LOB字段更改不记日志，归档日志可以选择不记日志。
 
-
 ## 数据迁移
+
 export,import,load,db2look,db2move,db2dart
 
 文件格式|工具|-
@@ -169,7 +193,8 @@ DEL|db2dart|->
 
 DEL(ASCII数据使用分隔符) ASC(定长ASCII) 是文本格式，IXF IBM二进制，WSF新版本不支持，sursor(游标)
 
-#### export
+### export
+
 `export to users.del of del modified by coldel0x0f codepage=1208 messages message.log select * from test.user`
 MODIFIED BY 字句指定定界符
 
@@ -182,8 +207,11 @@ timestampformat="[x]"|源表中的时间戳的格式
 
 导出包含大对象的列的表时，默认情况下只能导出LOB数据的前32KB
 为了完整导出LOB，需要使用LOB选项，可以将LOB值连接起来导出到同一个输出文件中，也可以将每个LOB值导出到一个单独文件中。
+`EXPORT TO /home/db2inst1/stage/data/T_INDEX_2_DATE.ixf OF ixf modified BY codepage=1208 messages /home/db2inst1/stage/log/msg/T_INDEX2.msg  SELECT * FROM MY.T_INDEX_2 WHERE C1='9999' AND C2='0' AND c7 >= '20180104' AND C7 <= '20180106' WITH UR`
+`EXPORT TO /home/db2inst1/stage/data/T_INDEX_2_DATE.del OF del modified BY coldel0x0f CHARDEL0x1f codepage=1208 messages /home/db2inst1/stage/log/msg/T_INDEX2.msg SELECT * FROM MY.T_INDEX_2 WHERE C1='9999' AND C2='0' AND c7 >= '20180104' AND C7 <= '20180106' WITH UR`
 
-#### import
+### import
+
 可以导入到表，视图，但是不能导入到系统表，临时表。物化查询表
 
 底层一般采用insert，涉及到日志记录 索引的更新 参照完整性检查 表约束检查。默认只在操作结束commit一次，COMMINTCOUNT 指定导入多少行数据后commit，AUTOMATIC 选项让import自己决定合适需要执行提交。
@@ -202,6 +230,8 @@ CREATE|创建表和索引，然后导入数据，同时可以指定表空间。�
 `allow write access`，允许其他应用读写。
 `import from xx.del of del allow write access commitcount automatic insert into [table]`
 `restartcount/skipcount N`,表示跳过文件前N行数据，从N+1开始继续导入。
+
+`import FROM /home/db2inst1/stage/data/T_INDEX_2_DATE.ixf OF ixf  ALLOW WRITE access commitcount automatic messages /home/db2inst1/stage/log/msg/T_INDEX2.msg  INSERT INTO MY.T_INDEX_2`
 
 #### load
 
@@ -234,24 +264,30 @@ CREATE|创建表和索引，然后导入数据，同时可以指定表空间。�
 - `load from xx.del of del modified by coldel0x0f codepage=1208 messages xx.msg replace into [tableName] nonrecoverable`
 
 `CREATE TABLE MY.T_INDEX_2_EXP LIKE MY.T_INDEX_2 IN INT1_DTS;
-ALTER TABLE MY.T_INDEX_2_EXP ADD COLUMN TS TIMESTAMP ADD COLUMN MSG CLOB(32K);`异常表
+`ALTER TABLE MY.T_INDEX_2_EXP ADD COLUMN TS TIMESTAMP ADD COLUMN MSG CLOB(32K);`异常表
 `db2 "load from  /dev/null of del terminate into MY.T_INDEX_2"`load 中断恢复
 `db2 "load from /home/db2inst1/stage/data/T_INDEX_2_01.del of del modified BY dumpfile=/home/db2inst1/stage/log/bad/T_INDEX_2.bad coldel^  codepage=1208 METHOD P(1,2,3,4,5,10,11)  messages /home/db2inst1/stage/log/msg/T_INDEX2.msg INSERT INTO MY.T_INDEX_2 (C1,C2,C3,C4,C5,C10,C11)  for exception MY.T_INDEX_2_EXP nonrecoverable ALLOW READ access"` laod 数据，dumpfile不符合定义的转储文件；coldelx字段分隔符；CHARDELx字符串分隔符；codepage字符编码；METHOD源数据的列号；messages msg信息；INSERT装入方式；for exception异常表；nonrecoverable 不可前滚恢复；ALLOW READ access允许查寻；
-
-
-
+`load from /home/db2inst1/stage/data/T_INDEX_2_DATE.ixf of ixf   METHOD P(1,2,3,4,5,6,7,10,11,12,15) messages /home/db2inst1/stage/log/msg/T_INDEX2.msg INSERT INTO MY.T_INDEX_2 (C1,C2,C3,C4,C5,C6,C7,C10,C11,C12,C15)  for exception MY.T_INDEX_2_EXP nonrecoverable ALLOW READ access`
 
 #### db2move
+
 只兼容IXF格式的文件，文件名由db2move自动生成
 `db2move sample export`,db2move.list存放导出的表和对应的导出数据以及消息文件列表，EXPOTRT.out 存放导出过程，tabx.ixf 数据文件，tabx.msg消息文件。
-`db2move sample import`
+`db2move <database-name> <action> [<option> <value>]`
+- action: export import load copy
+  - import -io支持 create、insert、insert_update、replace、replace_create,默认replace_create。
+  - load 支持 insert、replace，默认insert。
+- option: -tn 表；-ts 表空间；-tc 创建者；-sn 模式名；-tf从指定文件；-io imoprt-option。多个值使用逗号分隔。
+  - -l lobpaths;-u userid -p password
 
 #### db2look
+
 - 可以将DDL语句，数据库统计状态，表空间参数导出，这个导出可以用于不同系统的数据库
   - `db2look -d sample -l -e -o sample.ddl`
-  - d databaseName,l layout(tablespaces & bufferpools),e DDL,t tableName,o outputFile，x生成用户权限相关的DDL,z schema
+  - -d databaseName,-l tablespaces/bufferpools/数据库分区组 DDL,-e 数据库对象 DDL,-t tableName,-o outputFile，-x生成用户权限相关的 DDL,-z schema,-a 用户创建的所有对象 DDL，-td delimiter 默认分隔符，默认“;”
 
 ### db2dart
+
 事务日志被破坏，磁盘故障，且没有数据库备份的情况下，只有db2dart了
 不会抽取大对象数据。db2dart导出的数据文件可以通过load/import加载。db2dart的时候最好deactivate数据库否则可能会出现不一致。
 `db2dart sample /ddel`，会让输入表ID 表空间ID，`/rpt`选项可以指定导出数据文件位置。
@@ -262,27 +298,37 @@ ALTER TABLE MY.T_INDEX_2_EXP ADD COLUMN TS TIMESTAMP ADD COLUMN MSG CLOB(32K);`�
 - db2恢复的类型：版本恢复（恢复到上次备份，上次备份之后的丢失），前滚恢复（在版本恢复的基础上，使用日志，恢复到奔溃前），崩溃恢复（一个事务两个sql，第一个执行完崩溃了，事务被中断，数据库处于不一致状态。系统重启时会回滚（undo）没有提交的数据，重做（redo）已经提交但是没有写入磁盘的数据，将数据库恢复到一致状态。缺省情况崩溃恢复是自动执行的。）
 
 ### 日志
+
 - `db2 get db cfg for sample |grep -i log`，数据日志参数。
 - 日志空间，由logprimary（主日志文件个数），logsecond（辅助日志文件个数），logfilsiz（每个日志文件的页数）。日志空间的最大限制等于(logprimary+logsecond)*logfilsiz*4K。
 - 日志文件位于`NEWLOGPATH`,可以通过`MIRRORLOGPATH`参数设置日志镜像路径。
 - 日志模式：归档日志，循环日志。`LOGARCHMETH1`为OFF表示循环日志，OFF以外的值为归档日志。循环日志是创建数据库时的默认模式，当更改为归档日志时，需要做离线全备，飞则连接时会`backup-pending`
 
 ### 备份
+
 backup online(在线备份，日志模式需要是归档日志) tablespace(指定对某些表空间备份，归档模式可用) incremental(指定增量备份，最近一次全备以来的变化数据备份，incremental delta 备份是最近次备份 任何类型的备份以来变化数据库的备份) compress(压缩备份介质) include logs(只适用于在线备份，备份完成时将但前活动日志归档，并将其导报到备份介质中)
 
 #### 离线备份
+
 - 断开连接，关闭数据库，`db2stop force`，显示所有数据及其路径列表，`db2 list database directory`，显示所有活动的数据，`db2 list activce databases`，失效数据库实例,`db2 deactivate database [sample]`。
 - 数据库的备份和恢复，不能跨平台恢复。离线备份,`db2 backup db [sample] to [path]`
 
 #### 在线备份
+
 - 启用日志归档模式,`db2 update db cfg for [sample] using LOGRETAIN ON`,设置日志归档目录,`db2 update db cfg for [sample] using LOGARCHMETH1 DISK:[path]`,做一次离线备份，否则数据库会登录不了[如果提示有连接无法备份，请参考db2离线备份],`db2 backup db [sample] to [path]`。
 - 在线备份,`db2 backup db [sample] online to [path] include logs`，从开始备份到结束备份期间的操作记录到日志中，includ logs 选项会关闭当前活动的日志，并进行归档，然后打包存到备份介质中。
+
 #### 表空间备份
+
 `backup db <db> tablespace (<tabs1>[,tabs2]) online  [to <path>]`
+
 #### 增量备份
+
 积累增量，每次都在上次全备基础上备份；迭代增量，每次都在上次备份基础上备份。
 `backup db <db> [tablesapce (<tabs1>[,tabs2])] [online] incremental [delta] [to <path>]`
+
 #### 备份介质检查
+
 SAMPLE.0.DB2.NODE0000/CATN0000.20110415102710.001
 数据名.备份类型.实例名.分区节点号.编目节点号.备份时间戳.顺序号
 备份类型：0-全备;3-备份表空间;4-load copy备份。但分区接单号固定为NODE0000，编目节点号固定为CATN0000,时间戳为备份开始的时间
@@ -292,23 +338,28 @@ SAMPLE.0.DB2.NODE0000/CATN0000.20110415102710.001
 ### 恢复
 
 - 恢复到相同数据库，`db2 restore db [sample] from [path] taken at [时间戳]`，taken at确定恢复哪个备份文件。
+
 -恢复到不同数据库,`db2 restore db [sample] from [path] into [otherDatabase]`
+
 - `db2 list history backup all for [sample]`,查看备份记录
 - 从包含日志的备份集恢复(恢复同一个数据库 into [sample] 可省略)。要导入的数据库的归档目录不要和备份恢复的日志目录相同。`db2 RESTORE db [sample] FROM [backupPath] taken at [备份时间戳] into [sample] LOGTARGET [logPath]`,logtarget 将日志恢复到一个指定的目录。
 - 前滚。由于从备份成功到数据库崩溃的时间间隔会产生其他的归档日志，可以将这些日志拷贝到/data/db2data/logs/中，或者直接从归档日志目录进行前滚，同"从不包含日志的备份集恢复"中的"前滚"。`db2 "rollforward db [sample] to end of logs and stop overflow log path([logPath])"`，`overflow log path 指定前滚获取日志的目标`
 
-
 ## 运维
+
 runstats(收集统计信息，为db2优化器提供最佳路径选择),reorgchk(重组前检查),reorg(重组，减少表和索引在五路存储上的碎片),rebind(对包，存储过程，或者静态程序进行重新绑定)
 
 ### runtatus
+
 - `runstats on table <schema>.<tableName> on all columns with distribution and detailed indexes all`,收集统计信息，包括数据分布。
 - `runstats on table <schema>.<tableName> for indexes all`,收集索引统计信息，如果表上没有统计信息，会同时对表做统计，但是不会收集数据分布信息。
 - `runstats on table <schema>.<tableName> tablesample bernoulli(10)`,(伯努利10%抽样统计)使用伯努利算法抽样统计，扫描每一行数据，但是只对一定比例抽样数据进行统计，适用于大表，大表的全表统计比较消耗资源。
 - `select char(tabname,20) as tabname,stats_time from syscat.tables where stats_time is null`,stats_time 字段为空值表明没有收集过统计信息，否则会显示统计信息的时间。
 - `reorgchk update statistics`对所有表收集统计信息，但是不会收集分布统计。
 - runstats:allow write access,runstatus时其它应用可以读取和修改，默认行为;allow read access，只能读取无法修改。
+
 ### reorg
+
 - 数据夸页，甚至有些页为空页，数据不连续。
 - `db2 reorgchk on schema <schemaName>`,如果输出中F1，F2，F3标记为*则需要reorg；如果索引统计结果F4-F8有*，则需要对索引reorg。
 - 离线reorg，支持allow read access (默认),allow no access。离线reorg采用影子拷贝方法。离线索引可以通过`index index-name`选项指定根据哪个索引进行重组，如果定义了聚集索引即使灭有指定索引，默认也会按照聚集索引重组表。reorg分为四个阶段
@@ -324,25 +375,31 @@ runstats(收集统计信息，为db2优化器提供最佳路径选择),reorgchk(
 - reorg 索引，`db2 reorg indexes all for table <table>`
 
 ### rebind
+
 C程序中的sql预编译后会把执行计划被放到package中，but新添加索引等后执行计划不会更新。
 `db2 list packages for schema <schema>`,列出相应的package名
 rebind只能针对每个package，`db2rbind sample -l db2rbind.log all`,对所有package重新绑定。动态SQL是执行时才编译的，存储在 package cache中，统计信息更新后，可以通过`flush package cache dynamic`，更新package cache。
 
 ### 表空间大小
+
 `db2 "call get_dbsize_info(?,?,?,<refresh-window>)"`refresh-window，为输入参数，进行数据大小和容量大小的刷新，单位为分钟，默认30，传入0会立即刷新。
 `db2 list tablespaces show detail`,`sysibmadm.tbsp_utilization`也可以查询表空间使用率。
 计算某个表占用空间有`db2pd -tcbstats`,`admin_get_tab_info`,`SYSIBMADM.ADMINTABINFO`。三种方法
   - `db2pd -d <sample> -tcbstats`,DataSize表示表的页数。
   - `describe table SYSIBMADM.ADMINTABINFO`
 
-
 ## 监控
+
 分为两类，实时监控和追踪监控。实时监控记录数据库某一时刻的快照信息shapshot db2pd db2top；实时监控提供跟详细的数据活动,事件监控器和 activity monitor,事件监听器可能会产生较大的数据量，对系统造成较大的影响，一般用于问题诊断。
+
 ### snapshot
+
 监控元素分为以下几类
+
 - 计数器(counter):用来村粗累计值，比如实例启动依赖数据库发生的总排序次数(total sorts)，死锁个数(deadlocks)，读取行数(rows read)等
 - 计量/瞬时值(gauge):记录某个监控元素的当前值，比如当前发生排序的次数(active sorts)，当前的锁个数(locks)。
 - 高水位值(high water mark):记录一个监控元素在打开监控开关以阿里所达到的最大值或最小值，通过高水位值可以获取峰值时的数据。
+
 实际分析中需要进行多次抓取快照，分析一段时间内的数据库活动。
 `db2 get snapshot for database on <sample>`
 `db2 get snapshot for applications on <sample>`
@@ -353,6 +410,7 @@ rebind只能针对每个package，`db2rbind sample -l db2rbind.log all`,对所�
 `db2 get snapshot for dynamic on <sample>`
 
 ### db2pd
+
 速度快，性能好。
 分区数据库中存在多个物理节点时，必须运行在逻辑分区所在的物理节点。如果分区在远程物理节点，可以使用-global参数运行，`db2pd -db sample -dbp 3 global`
 
@@ -370,6 +428,7 @@ rebind只能针对每个package，`db2rbind sample -l db2rbind.log all`,对所�
 - `db2pd -db <sample> -tcbstats index`,索引信息。
 
 ### db2top
+
 原理是在后台每隔一段时间收集一次快照，探后通过计算其与最近一次快照之间的数值差别与经过的时间，计算出一些列统计数据。
 `db2top -d <sample>`，进入交互界面，h帮助菜单。
 `/`进行搜索，!xx不包含xx的。`z`按照列进行排序，列序号从0开始。`L`输入第一列的hash值，查看SQL。`x`得到当前语句的执行计划（需要创建sqllib/misc/EXPLAN.DDL中的表）,`l`系统中应用程序列表，`b`缓冲池，主要监控命中率和逻辑物理读取的数量，`U`锁，`T`表。
@@ -379,41 +438,19 @@ rebind只能针对每个package，`db2rbind sample -l db2rbind.log all`,对所�
 - `db2top -d <sample> -f <out.file> -b 1 -A`,重新播放收集到的数据，`db2top -d <sample> -f <out.file> /02:00:00`直接查看给定时间戳时的信息。
 
 ### 事件监控器
+
 当谋个事件发生时记录信息的机制，比如发生死锁时，会将死锁先关的信息写到表或文件中，便于事后分析。事件监控器产生的数据量比较大，会对系统造成非常大的影响。
 `create event monitor`,创建监控器，监控器创建后不会自动启动，`SET event_moitor_name STATUS=1`来激活，如果把记过输出到文件系统，可以通过db2evmon解析数据`db2evmon -path > even_monitor_target`
+
 ## 优化器与性能调优
+
 `db2exfmt`生成文本访问计划
 `db2 -tvf ~/sqllib/misc/EXPLAIN.DDL`，创建执行计划需要的表。运行`db2 set current explain mode   explain`,打开访执行计划选项，按照普通普通方式SQL，然后使用`db2 set current explain mode on`，关闭访问计划选项。`db2exfmt -d <sample> -g TIC -w -l -n % -s % -# 0 -o <file>`
 `db2expln -d <sample> -f <select.sql> -g -t`,-z ";" 指定分隔符，-q "",输入参数，-o 结果输出到文件。
 `db2advis -d <sample> -i <select.sql> -t 5`,优化建议，-n指定schema， -a uaername/passwd,指定用户密码。
+
 ### 索引
+
 `db2pd -d <sample> -tcbstats -index`,输出有个scans，一段时间内为0说明索引没有用到。也提供MON_GET_INDEX视图用来识别没有用到的索引。
 `SELECT SUBSTR(T.TABSCHEMA,1,18),SUBSTR(T.TABNAME,1,18),SUBSTR(S.INDSCHEMA,1,18),SUBSTR(S.INDNAME,1,18),T.PAGE_ALLOCATIONS,S.UNIQUERULE,S.INDEXTYPE FROM TABLE(MON_GET_INDEX('','',-1)) AS T,SYSCAT.INDEXES AS S WHERE T.TABSCHEMA= S.TABSCHEMA AND T.TABNAME=S.TABNAME AND T.IID=S.IID AND T.INDEX_SCANS=0`
 
-###
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-end

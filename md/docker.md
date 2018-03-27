@@ -2,6 +2,23 @@
 #docker
 
 
+$ sudo apt-get update
+$ sudo apt-get install \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    software-properties-common
+$ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+amd64:
+$ sudo add-apt-repository \
+"deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+$(lsb_release -cs) #mint需要改成对应的ubuntu
+stable"
+$ sudo apt-get update
+$ sudo apt-get install docker-ce
+
+
+
 # UI
 ## DockUI
 docker run -d -p 59000:9000 --privileged -v /var/run/docker.sock:/var/run/docker.sock uifd/ui-for-docker
@@ -88,7 +105,7 @@ docker rm `docker ps -aq`删除所有镜像
 ```
 vi /etc/docker/daemon.json
 {
-“registry-mirrors”: [“https://registry.docker-cn.com“]
+"registry-mirrors": ["https://registry.docker-cn.com"]
 }
 ```
 重启生效
@@ -138,8 +155,13 @@ build 的 `--no-cache`参数可以跳过缓存
 
 
 
+oracle
+`sudo docker pull sath89/oracle-12c`
+`sudo docker run -d --name oracle-12c -p 8090:8080 -p 1522:1521 sath89/oracle-12c`
 
-
+db2
+`docker pull ibmcom/db2express-c`
+`docker run -it -p 50000:50000 -e DB2INST1_PASSWORD=db2inst1-pwd -e LICENSE=accept ibmcom/db2express-c:latest bash`
 
 
 
