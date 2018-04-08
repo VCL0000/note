@@ -285,6 +285,8 @@ db2fenc1
 - **启动停止实例**
 `db2start/db2stop`
 
+#### 裸设备表分区挂载
+sudo modprobe raw &&  raw /dev/raw/raw1 /dev/vg1/lv1 && chown db2inst1:db2iadm1 /dev/raw/raw1
 #### 卸载db2
 
 1. 首先删除数据库
