@@ -13,3 +13,6 @@ build
 
 #self
 SQL/resource/
+
+#vscode
+.vscode
